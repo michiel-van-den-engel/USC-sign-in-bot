@@ -1,1 +1,9 @@
-*.env
+# For python
+*__pycache__*
+
+# Ignore single use files
+*.ipynb
+*.html
+
+# Ignore environment files for safety
+.env
