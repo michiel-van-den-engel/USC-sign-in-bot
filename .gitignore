@@ -7,3 +7,6 @@
 
 # Ignore environment files for safety
 .env
+
+# Ignore settings for your local machine
+.vscode*

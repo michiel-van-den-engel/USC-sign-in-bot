@@ -1,0 +1,17 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+selenium = "~=4.23"
+webdriver_manager = "~=4.0"
+python-telegram-bot = "~=21.4"
+jupyter = "*"
+prompt-toolkit = "*"
+aiogram = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.11"
