@@ -176,7 +176,7 @@ class USC_Interface(webdriver.Chrome):
 
         # Comibine the time from the element with the days ahead to a datetime object
         dt_time : dt = dt.combine(
-            dt.now() + timedelta(days=day_ahead),
+            dt.now() + timedelta(days=day_ahead-1),
             dt.strptime(extracted_time, "%H:%M").time()
         )
         
@@ -274,7 +274,7 @@ class USC_Interface(webdriver.Chrome):
         sorting_slots = self._select_all_elements('div[data-test-id="bookable-slot-list"]')
 
         # Then filter those sorts for one with the right sport and the right time
-        slots = self._filter_webelements(sorting_slots, f"//*[contains(string(), '{sport}') and contains(string(), '{time_str}')]")
+        slots = self._filter_webelements(sorting_slots, f"*[contains(., '{sport}') and contains(., '{time_str}')]")
 
         # Assuming there are no slots with the same sport and time there is only one slot left. For that slot find the button 
         # for booking and click on that button
@@ -352,7 +352,7 @@ if __name__ == "__main__":
     )
     # trainings = driver.get_all_lessons("Schermen")
     # print(trainings)
-    date = dt(2024, 8, 16, 20, 0, 0)
+    date = dt(2024, 8, 19, 19, 0, 0)
     driver.sign_up_for_lesson("Schermen", date)
 
     driver.close()

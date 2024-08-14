@@ -10,6 +10,7 @@ python-telegram-bot = "~=21.4"
 jupyter = "*"
 prompt-toolkit = "*"
 aiogram = "*"
+cryptography = "*"
 
 [dev-packages]
 

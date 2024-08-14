@@ -5,6 +5,9 @@
 *.ipynb
 *.html
 
+# Let's not save the database to git
+*.db
+
 # Ignore environment files for safety
 .env
 
