@@ -9,7 +9,7 @@ spec:
   accessModes:
     - ReadWriteOnce
   hostPath:
-    path: /mnt/data/usc_database.db  # Path on the host machine
+    path: /mnt/data # Path on the host machine
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
