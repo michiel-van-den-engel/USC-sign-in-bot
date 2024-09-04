@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: usc-telegram-deployment
+  namespace: usc
+spec:
+  replicas: 1  # Number of pods
+  selector:
+    matchLabels:
+      app: usc-telegram-deployment
+  template:
+    metadata:
+      labels:
+        app: usc-telegram-deployment
+    spec:
+      containers:
+        - name: usc-telegram-container
+          image: michielvandenengel/usc-bot:latest
+          command: ["python", "usc_sign_in_bot/telegram_bot.py"]
+          env:
+          - name: ENCRYPT_KEY
+            valueFrom:
+              secretKeyRef:
+                name: encryptionkey
+                key: ENCRYPT_KEY
+          - name: BOTTOKEN
+            valueFrom:
+              secretKeyRef:
+                name: telegram-bottoken
+                key: BOTTOKEN
+          volumeMounts:
+            - mountPath: /app
+              name: database-storage
+              subPath: usc_database.db
+      volumes:
+        - name: database-storage
+          persistentVolumeClaim:
+            claimName: database-pvc
