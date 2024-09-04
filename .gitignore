@@ -13,3 +13,4 @@
 
 # Ignore settings for your local machine
 .vscode*
+*.checkpoint*
