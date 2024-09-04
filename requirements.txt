@@ -1,0 +1,7 @@
+selenium~=4.24
+webdriver_manager~=4.0
+python-telegram-bot~=21.4
+aiogram
+cryptography
+jupyter
+prompt-toolkit

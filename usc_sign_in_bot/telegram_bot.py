@@ -23,6 +23,8 @@ LOGIN_METHODS = ['uva']
 
 logger = logging.getLogger(__name__)
 
+load_dotenv()
+
 async def start(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     """Send a message that the user will now receive updates for the sport they choose"""
     user = update.effective_user

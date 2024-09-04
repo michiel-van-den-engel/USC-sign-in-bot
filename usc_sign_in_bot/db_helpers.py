@@ -11,8 +11,6 @@ from base64 import b64decode, b64encode
 
 from datetime import datetime as dt
 
-from traitlets import default
-
 conn = sqlite3.connect("usc_database.db")
 cursor = conn.cursor()
 

@@ -1,5 +1,6 @@
 # For python
 *__pycache__*
+.venv/
 
 # Ignore single use files
 *.ipynb
@@ -13,4 +14,4 @@
 
 # Ignore settings for your local machine
 .vscode*
-*.checkpoint*
+*checkpoint*

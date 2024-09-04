@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: usc-database-pv
+  namespace: usc
+spec:
+  capacity:
+    storage: 1Gi  # Adjust storage size as needed
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /mnt/data/usc_database.db  # Path on the host machine
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: usc-database-pvc
+  namespace: usc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi  # Match the size of the PV
