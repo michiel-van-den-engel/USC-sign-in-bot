@@ -35,4 +35,4 @@ spec:
       volumes:
         - name: database-storage
           persistentVolumeClaim:
-            claimName: database-pvc
+            claimName: usc-database-pvc
