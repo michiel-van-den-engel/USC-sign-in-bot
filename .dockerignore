@@ -1,0 +1,18 @@
+# Ignore kuberetes config as it's used outside the container
+kubernetes-config/*
+
+# Ignore data files created or loaded later into the container
+*.db
+
+# Files like theses are not needed for a computer read
+*.html
+*.md
+*.ipynb
+
+# Specific settings should be ingored as well
+*.checkpoint*
+.venv/
+
+# For now, temporaraly
+Pipfile
+Pipfile.lock
