@@ -29,9 +29,8 @@ spec:
                 name: telegram-bottoken
                 key: BOTTOKEN
           volumeMounts:
-            - mountPath: /app
+            - mountPath: /app/usc_database.db
               name: database-storage
-              subPath: usc_database.db
       volumes:
         - name: database-storage
           persistentVolumeClaim:
