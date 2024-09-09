@@ -1,11 +1,21 @@
-# Use the official Python 3.11.9 image based on Debian Bookworm
-FROM python:3.11.9-bookworm
+# Use the pre-built Selenium image with Chrome
+FROM selenium/standalone-chrome:latest
 
-# Set the working directory
-WORKDIR /app
+# Install packageas with root priviliges
+USER root
+RUN apt-get update && \
+    apt-get install -y python3 python3-pip python3-venv
 
-# Copy the application code into the container
-COPY .  .
+# Add a user for running stuff and switch to that user
+USER seluser
+
+# Copy the application code into the container and add the working directory
+COPY --chown=seluser:seluser . /home/seluser/app
+WORKDIR /home/seluser/app
 
 # Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN python3 -m venv .venv
+RUN .venv/bin/pip install -r requirements.txt
+
+# Ensure the virtual environment is in the PATH
+ENV PATH="/home/seluser/app/.venv/bin:$PATH"

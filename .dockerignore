@@ -2,7 +2,7 @@
 kubernetes-config/*
 
 # Ignore data files created or loaded later into the container
-*.db
+
 
 # Files like theses are not needed for a computer read
 *.html
@@ -12,6 +12,7 @@ kubernetes-config/*
 # Specific settings should be ingored as well
 *.checkpoint*
 .venv/
+.env
 
 # For now, temporaraly
 Pipfile

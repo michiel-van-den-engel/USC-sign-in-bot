@@ -7,6 +7,7 @@ from datetime import datetime as dt, timedelta
 
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
@@ -15,6 +16,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 from dotenv import load_dotenv
 
 USC_URL = 'https://my.uscsport.nl/pages/login'
+TIMEZONE = "Europe/Amsterdam"
 
 weekdays = json.load(open("shortened_weekdays.json", "r", encoding="UTF-8"))['NL']
 
@@ -30,7 +32,16 @@ class USC_Interface(webdriver.Chrome):
 
     def __init__(self, username:str, password:str, uva_login:bool=False):
         service = Service(ChromeDriverManager().install())
-        super().__init__(service=service)
+        
+        chrome_options = Options()
+        chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--disable-gpu")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--window-size=1920x1080")
+
+        super().__init__(service=service, options=chrome_options)
+
+        self._set_browser_timezone(TIMEZONE)
 
         self._login(username, password, uva_login)
 
@@ -73,7 +84,42 @@ class USC_Interface(webdriver.Chrome):
 
         logger.info("UVA login successfull")
 
-    def _select_element(self, selector_path:str, select_with:webdriver.common.by.By=By.CSS_SELECTOR) -> webdriver.remote.webelement.WebElement:
+    def _set_browser_timezone(self, timezone):
+        self.execute_cdp_cmd('Emulation.setTimezoneOverride', {
+            'timezoneId': timezone
+        })
+
+    def _click_and_find_element(self, css_selector:str) -> None:
+        """
+        Click an element specified by the CSS selector using JavaScript.
+
+        Parameters
+        ----------
+        css_selector : str
+            The CSS selector of the element to locate and click.
+
+        Returns
+        -------
+        None
+            This function does not return any value.
+
+        Notes
+        -----
+        This method uses JavaScript to perform the click action on the element, which can 
+        be useful when the standard Selenium click method is obstructed or fails due to 
+        overlaying elements or other issues.
+
+        Examples
+        --------
+        >>> _click_and_find_element('button.submit')
+        """
+        element = self._select_element(css_selector)
+        self.execute_script("arguments[0].click();", element)
+
+    def _select_element(self, 
+            selector_path:str,
+            select_with:webdriver.common.by.By=By.CSS_SELECTOR
+        ) -> webdriver.remote.webelement.WebElement:
         """
         Search for a single web element using a specified selector.
 
@@ -141,7 +187,8 @@ class USC_Interface(webdriver.Chrome):
         sports_element = self._select_element(f'//li[label[text()="{sport}"]]', select_with=By.XPATH)
 
         # Click the selection box
-        sports_element.find_element(By.TAG_NAME, 'input').click()
+        input_element = sports_element.find_element(By.TAG_NAME, 'input')
+        self.execute_script("arguments[0].click();", input_element)
 
         # Click again on the dropdown to make it go away
         dropdown.click()
@@ -218,7 +265,7 @@ class USC_Interface(webdriver.Chrome):
 
             if not days:
                 # Move foreword for the number of the days shown
-                for _ in range(day_length): self._select_element('a[data-test-id="advance-one-day-button"]').click()
+                for _ in range(day_length): self._click_and_find_element('a[data-test-id="advance-one-day-button"]')
 
                 # Now select all the days in our new window
                 days = self._select_all_elements('a[data-test-id-day-selector="day-selector"]')
@@ -249,7 +296,7 @@ class USC_Interface(webdriver.Chrome):
 
         if date.date() == dt.today().date():
             date_str = "Vandaag"
-        
+
         else:
             date_str = f"{weekdays[date.strftime('%w')]} {date.strftime('%-d-%-m')}"
 
@@ -272,9 +319,23 @@ class USC_Interface(webdriver.Chrome):
 
         # Get all the slots in the day
         sorting_slots = self._select_all_elements('div[data-test-id="bookable-slot-list"]')
+        logger.info("%i, %s", len(sorting_slots), sorting_slots)
+
+        html_output = "<ul>\n"
+    
+        # Convert each element into an <li> HTML tag
+        for element in sorting_slots:
+            html_output += f"  <li>{element.text}</li>\n"
+        
+        # Close the HTML tag
+        html_output += "</ul>"
+
+        with open('tyr.html', 'w') as file:
+            file.write(html_output)
 
         # Then filter those sorts for one with the right sport and the right time
         slots = self._filter_webelements(sorting_slots, f"*[contains(., '{sport}') and contains(., '{time_str}')]")
+        logger.info("%i, %s", len(slots), slots)
 
         # Assuming there are no slots with the same sport and time there is only one slot left. For that slot find the button 
         # for booking and click on that button
@@ -336,6 +397,7 @@ class USC_Interface(webdriver.Chrome):
             A list of information extracted from each available timeslot for the specified sport.
         """
         try:
+
             self._filter_for_sport(sport)
 
             return self._loop_over_the_days(days_in_future, sport, self._extract_info_from_timeslot)

@@ -138,6 +138,7 @@ async def message_handler(update: Update, _: CallbackContext) -> None:
     key, s_choice = update.callback_query.data.split(',')
     choice = s_choice == 'Y'
     data = get_lesson_data_by_key(key)
+    edit_data_point(key, "response", s_choice)
 
     if choice:
         user = get_user(telegram_id, query_key="telegram_id")
@@ -155,8 +156,6 @@ async def message_handler(update: Update, _: CallbackContext) -> None:
         update.callback_query.message.text +
         f"\n\nWe have recorded your choice as being {text_choice}. Good luck!"
     )
-
-    edit_data_point(key, "response", s_choice)
 
 def main() -> None:
     """Start the bot"""
