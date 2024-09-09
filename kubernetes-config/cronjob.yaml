@@ -1,0 +1,33 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: usc-sign-in-bot
+spec:
+  schedule: "0 12 * * *" # This will run at midday every day
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: usc-sign-in-bot
+            image: michielvandenengel/usc-bot:latest
+            command: ["python", "usc_sign_in_bot/usc_bot.py"]
+            volumeMounts:
+            - mountPath: /app/usc_database.db
+              name: database-storage
+            env:
+            - name: UVA_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: uva-login
+                  key: password
+            - name: UVA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: uva-login
+                  key: username
+          restartPolicy: OnFailure
+          volumes:
+          - name: database-storage
+            persistentVolumeClaim:
+              claimName: usc-database-pvc
