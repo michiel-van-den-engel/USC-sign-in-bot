@@ -1,14 +1,15 @@
+---
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: usc-database-pv
+  name: postgres-pv
 spec:
   capacity:
-    storage: 1Gi  # Adjust storage size as needed
+    storage: 1Gi
   accessModes:
     - ReadWriteOnce
   hostPath:
-    path: /mnt/data/usc_database.db # Path on the host machine
+    path: "/mnt/data/postgres"  # This path is on the Kubernetes node
   nodeAffinity:
     required:
       nodeSelectorTerms:
@@ -21,11 +22,10 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: usc-database-pvc
-  namespace: usc
+  name: postgres-pvc
 spec:
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 1Gi  # Match the size of the PV
+      storage: 1Gi

@@ -67,4 +67,7 @@ async def main() -> None:
             logger.error("Forbidden for user %s, with error message: %s", user['user_id'], e)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    finally:
+        usc.quit()

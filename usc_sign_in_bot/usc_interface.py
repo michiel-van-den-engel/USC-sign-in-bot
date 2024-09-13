@@ -319,7 +319,6 @@ class USC_Interface(webdriver.Chrome):
 
         # Get all the slots in the day
         sorting_slots = self._select_all_elements('div[data-test-id="bookable-slot-list"]')
-        logger.info("%i, %s", len(sorting_slots), sorting_slots)
 
         html_output = "<ul>\n"
     
@@ -335,7 +334,6 @@ class USC_Interface(webdriver.Chrome):
 
         # Then filter those sorts for one with the right sport and the right time
         slots = self._filter_webelements(sorting_slots, f"*[contains(., '{sport}') and contains(., '{time_str}')]")
-        logger.info("%i, %s", len(slots), slots)
 
         # Assuming there are no slots with the same sport and time there is only one slot left. For that slot find the button 
         # for booking and click on that button
@@ -412,8 +410,6 @@ if __name__ == "__main__":
         os.environ['UVA_PASSWORD'],
         uva_login=True
     )
-    # trainings = driver.get_all_lessons("Schermen")
-    # print(trainings)
     date = dt(2024, 8, 19, 19, 0, 0)
     driver.sign_up_for_lesson("Schermen", date)
 
