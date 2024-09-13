@@ -2,7 +2,7 @@
 kubernetes-config/*
 
 # Ignore data files created or loaded later into the container
-
+*.db
 
 # Files like theses are not needed for a computer read
 *.html
@@ -14,6 +14,5 @@ kubernetes-config/*
 .venv/
 .env
 
-# For now, temporaraly
-Pipfile
-Pipfile.lock
+# Files that are just not usefoll for docker
+.gitignore
