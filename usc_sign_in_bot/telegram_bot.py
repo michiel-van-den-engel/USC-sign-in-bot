@@ -1,5 +1,6 @@
 import os
 import logging
+import traceback
 from datetime import datetime as dt
 from dotenv import load_dotenv
 
@@ -113,7 +114,7 @@ async def help_command(update: Update, _: CallbackContext) -> None:
 
 async def error_handler(update:Update, context: CallbackContext) -> None:
     """If there is an error, log it and let the user know something went wrong"""
-    logging.error("An error occured: %s", context.error)
+    logging.error("An error occured: %s: %s", context.error, traceback.format_exc())
 
     if str(context.error) == "Login method is not known":
         await update.message.reply_text("Sorry, that login method has not been implemented yet, please choose one"+

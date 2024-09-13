@@ -1,6 +1,9 @@
 """In here, define functionsn to help with the sqlite tasks of the program"""
 from asyncio import streams
 import os
+import psycopg2
+from psycopg2.errors import UniqueViolation, Error
+from psycopg2 import sql
 import hashlib
 import sqlite3
 import logging
@@ -10,17 +13,29 @@ from cryptography.hazmat.primitives import padding
 from base64 import b64decode, b64encode
 
 from datetime import datetime as dt
-
-conn = sqlite3.connect("usc_database.db")
+conn = psycopg2.connect(
+    dbname=os.environ.get("POSTGRES_DB", "usc_db"),
+    user=os.environ.get("POSTGRES_USER"),
+    password=os.environ.get("POSTGRES_PASSWORD"),
+    host=os.environ.get("POSTGRES_HOST", "localhost"),
+    port=os.environ.get("POSTGRES_PORT", '5432')
+)
 cursor = conn.cursor()
-
-with open("init.sql", 'r', encoding="UTF-8") as file:
-    init_query = file.read()
 
 logger = logging.getLogger(__name__)
 
-# Execute some scripts to make sure the table is in there
-cursor.executescript(init_query)
+def initiate_db():
+    """Initiate the db and make sure the tables alle exist"""
+    with open("init.sql", 'r', encoding="UTF-8") as file:
+        init_query = file.read()
+
+    # Execute some scripts to make sure the table is in there
+    for command in init_query.split(';'):
+        # Don't execute empty lines
+        if command.strip():
+            cursor.execute(command)
+
+    conn.commit()
 
 def _generate_hash_key(hash_str:str) -> str:
     """Create a hashed key based on sport and datetime"""
@@ -115,7 +130,7 @@ def insert_user(telegram_id:str, sign_up_time:dt, login_method) -> None:
     try:
         cursor.execute("""
             INSERT INTO users (user_id, sign_up_date, login_method, telegram_id)
-            VALUES (?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s)
         """, (user_id, sign_up_time.isoformat(), login_method, telegram_id))
 
         # Commit the changes to the database
@@ -124,8 +139,9 @@ def insert_user(telegram_id:str, sign_up_time:dt, login_method) -> None:
         return user_id
 
     # If the user allready exists, return the user_id
-    except sqlite3.IntegrityError:
-        logger.warn("User %s allready exists.", user_id)
+    except UniqueViolation:
+        logger.warning("User %s allready exists.", user_id)
+        conn.rollback()
         return user_id
 
 def add_to_data(sport:str, daytime: dt, user_id:str, message_sent:bool, response:str=None, trainer:str=None) -> str:
@@ -165,17 +181,22 @@ def add_to_data(sport:str, daytime: dt, user_id:str, message_sent:bool, response
     # done such that we don't have any key colissions as well as unsafe indenting keys
     key = _generate_hash_key(f"{sport}{daytime.isoformat()}{user_id}")
 
-    # Execute query to insert the values into the database
-    cursor.execute("""
-        INSERT INTO lessons (lesson_id, user_id, datetime, sport, trainer, message_sent, response)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    """, (key, user_id, str(daytime), sport, trainer, message_sent, response))
+    try:
+        # Execute query to insert the values into the database
+        cursor.execute("""
+            INSERT INTO lessons (lesson_id, user_id, datetime, sport, trainer, message_sent, response)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (key, user_id, str(daytime), sport, trainer, message_sent, response))
 
-    # Commit the changes to the database
-    conn.commit()
+        # Commit the changes to the database
+        conn.commit()
 
-    # Return the generated key sush that it can be used in the program for querying the record later on
-    return key
+        # Return the generated key sush that it can be used in the program for querying the record later on
+        return key
+
+    except Error as e:
+        conn.rollback()
+        raise e
 
 def has_received_update(sport:str, daytime:dt, user_id:str) -> bool:
     """
@@ -200,8 +221,8 @@ def has_received_update(sport:str, daytime:dt, user_id:str) -> bool:
     # Start with querying all the records with the sport, datetime and a message sent
     cursor.execute("""
         SELECT lesson_id FROM lessons
-        WHERE sport = ? AND datetime = ? AND message_sent = ? AND user_id = ?
-    """, (sport, str(daytime), 1, user_id))
+        WHERE sport = %s AND datetime = %s AND message_sent = %s AND user_id = %s
+    """, (sport, str(daytime), True, user_id))
 
     # Then get the first result of the query
     result = cursor.fetchone()
@@ -242,7 +263,7 @@ def get_lesson_data_by_key(key_les) -> list[str, int, bool]:
     # Start with querying the records we want to by key
     cursor.execute("""
         SELECT * FROM lessons
-        WHERE lesson_id = ?
+        WHERE lesson_id = %s
     """, (key_les,))
 
     # Because the key should be unique, there should only be one record. So take that one
@@ -253,7 +274,7 @@ def get_lesson_data_by_key(key_les) -> list[str, int, bool]:
     dict_result = dict(zip(cols, result))
 
     # Edit some types to the correct type
-    dict_result['datetime'] = dt.strptime(dict_result['datetime'], "%Y-%m-%d %H:%M:%S")
+    dict_result['datetime'] = dict_result['datetime']
     dict_result['message_sent'] = bool(dict_result['message_sent'])
 
     return dict_result
@@ -290,7 +311,7 @@ def get_user(id:str, query_key:streams="user_id") -> dict[str, object]:
     # Start with querying the records we want
     cursor.execute(f"""
         SELECT * FROM users
-        where {query_key} = ?
+        WHERE {query_key} = %s;
     """, (id,))
 
     # Because the key should be unique, there should only be one record. So take that one
@@ -336,8 +357,8 @@ def edit_data_point(key_les:str, col:str, value:str, table:str="lessons", key_co
     # Execute the update statement
     cursor.execute(f"""
         UPDATE {table}
-        SET {col} = ?
-        WHERE {key_column} = ?
+        SET {col} = %s
+        WHERE {key_column} = %s;
     """, (value, key_les))
 
     # Commit the changes to the database
@@ -368,7 +389,7 @@ def get_all_users_in_sport(sport:str) -> list[dict[str, str]]:
     cursor.execute("""
         SELECT user_id, telegram_id
         FROM users
-        WHERE sport = ?
+        WHERE sport = %s;
     """, (sport, ))
 
     # Fetch all the rows that are selected
@@ -379,3 +400,5 @@ def get_all_users_in_sport(sport:str) -> list[dict[str, str]]:
     result = [dict(zip(cols, row)) for row in rows]
 
     return result
+
+initiate_db()
