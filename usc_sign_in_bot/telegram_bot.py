@@ -19,12 +19,10 @@ logging.basicConfig(
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 # Define states for the conversation
-LOGIN_METHOD, SPORT, USERNAME, PASSWORD, WRAP_UP = range(5)
+LOGIN_METHOD, SPORT, USERNAME, PASSWORD, WRAP_UP,*_ = range(50)
 LOGIN_METHODS = ['uva']
 
 logger = logging.getLogger(__name__)
-
-load_dotenv()
 
 async def start(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     """Send a message that the user will now receive updates for the sport they choose"""
