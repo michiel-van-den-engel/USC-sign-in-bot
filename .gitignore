@@ -2,6 +2,9 @@
 *__pycache__*
 .venv/
 
+# Ignore the cache in pytest
+.pytest_cache*
+
 # Ignore single use files
 *.ipynb
 *.html
