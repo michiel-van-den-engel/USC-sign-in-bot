@@ -1,82 +1,32 @@
 """In here, define functionsn to help with the sqlite tasks of the program"""
 from asyncio import streams
 import os
+import traceback
 import psycopg2
-from psycopg2.errors import UniqueViolation, Error
-from psycopg2 import sql
-import hashlib
+from psycopg2.errors import UniqueViolation
 import logging
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import padding
-from base64 import b64decode, b64encode
 
 from datetime import datetime as dt
+from usc_sign_in_bot.encryptor import Encryptor
 
 logger = logging.getLogger(__name__)
 
-def _generate_hash_key(hash_str:str) -> str:
-    """Create a hashed key based on sport and datetime"""
-    # Create a SHA_256 hash for the combined string
-    hash_object = hashlib.sha256(hash_str.encode())
+def rollback_on_error(method):
+    """Define wraper to rollback and log error in case of error in database connect function"""
+    def wrapper(self, *args, **kwargs) -> any:
+        try:
+            return method(self, *args, **kwargs)
+        
+        except Exception as e:
+            self.conn.rollback()
+            logger.error("Error in %s: %s", method.__name__, traceback.format_exc())
+            raise e
+    
+    return wrapper
 
-    # Return the hexadecimal string of the hash. Only get the first 60 characters as the
-    # fuckers at telegrem does not support longer than 64 characters and we need to add some
-    # other info as well
-    return hash_object.hexdigest()[:60]
+class UscDataBase():
 
-def _get_key() -> str:
-    key = os.environ.get("ENCRYPT_KEY")
-
-    return key.ljust(32)[:32].encode('utf-8')
-
-def encrypt_data(text_to_be_encripted:str) -> str:
-
-    # Get the encription key from the environment
-    key = _get_key()
-
-    # Use the cipher with AES algorithm in CBC mode and add a random IV
-    iv = os.urandom(16)
-    cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
-    encryptor = cipher.encryptor()
-
-    # pad the plaintext such that it becomes a multiple of the wanted block size
-    padder = padding.PKCS7(128).padder()
-    padded_data = padder.update(text_to_be_encripted.encode('utf-8')) + padder.finalize()
-
-    # Encrypt the padded data
-    ciphertext = encryptor.update(padded_data) + encryptor.finalize()
-
-    # Return the IV and the ciphertext, for easy storage
-    return b64encode(iv + ciphertext).decode('utf-8')
-
-def decrypt_data(encrypted_data:str) -> str:
-
-    # Get the encription key from the environment
-    key = _get_key()
-
-    # Decode the base64-encoded text
-    ciphertext = b64decode(encrypted_data)
-
-    # split the data in the random string and the actual encrypted text
-    iv, actual_ciphertext = ciphertext[:16], ciphertext[16:]
-
-    # Now create the right decryptor objects to decrypt the text
-    cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
-    decryptor = cipher.decryptor()
-
-    # Decrypt the actual decrypted text
-    padded_plaintext = decryptor.update(actual_ciphertext) + decryptor.finalize()
-
-    # Now unpadd the text
-    unpadder = padding.PKCS7(128).unpadder()
-    plaintext = unpadder.update(padded_plaintext) + unpadder.finalize()
-
-    return plaintext.decode('utf-8')
-
-class db():
-
-    def __init__(self):
+    def __init__(self, create_if_not_exists:bool=True):
         self.conn = psycopg2.connect(
             dbname=os.environ.get("POSTGRES_DB", "usc_db"),
             user=os.environ.get("POSTGRES_USER"),
@@ -85,12 +35,28 @@ class db():
             port=os.environ.get("POSTGRES_PORT", '5432')
         )
         self.cursor = self.conn.cursor()
+        self.encrypt = Encryptor(os.environ.get('ENCRYPT_KEY'))
 
-        """Initiate the db and make sure the tables alle exist"""
+        # Don't continue checking if the database exists if it's not wanted
+        if not create_if_not_exists: return
+
         with open("init.sql", 'r', encoding="UTF-8") as file:
             init_query = file.read()
 
         self._multiple_query(init_query)
+
+    def __enter__(self):
+        # return the object when entering the context
+        return self
+    
+    def __exit__(self, _, __, ___):
+        # Ensure cursor is closed when exiting the context
+        if self.cursor:
+            self.cursor.close()
+
+        # Ensure connection is closed when exiting the context
+        if self.conn:
+            self.conn.close()
 
     def _multiple_query(self, query:str) -> None:
         """Execute a query with multiple statements"""
@@ -102,6 +68,7 @@ class db():
 
         self.conn.commit()
 
+    @rollback_on_error
     def insert_user(self, telegram_id:str, sign_up_time:dt, login_method:str) -> None:
         """
         Insert a new user into the database with a unique user ID.
@@ -121,7 +88,7 @@ class db():
             The date and time when the user signed up. This should be a `datetime` object.
         
         login_method : str
-            The method used by the user to log in, such as "telegram", "google", or "email".
+            The method used by the user to log in, such as "uva".
 
         Returns
         -------
@@ -131,7 +98,7 @@ class db():
         # Create the user idea as a hash of the telegram ID, we could of course use the telegram id, but
         # because we might want to use the user_id for sending it away later on we don't want to send
         # the telegram_id in the message to everyone
-        user_id = _generate_hash_key(str(telegram_id))
+        user_id = self.encrypt.generate_hash_key(str(telegram_id))
 
         try:
             self.cursor.execute("""
@@ -150,6 +117,7 @@ class db():
             self.conn.rollback()
             return user_id
 
+    @rollback_on_error
     def add_to_data(self, sport:str, daytime: dt, user_id:str, message_sent:bool, response:str=None, trainer:str=None) -> str:
         """
         Adds a new record to the `lessons` table in the database.
@@ -185,25 +153,21 @@ class db():
         """
         # Generate a hash key based on sport and datetime. This combination should be unique. This is
         # done such that we don't have any key colissions as well as unsafe indenting keys
-        key = _generate_hash_key(f"{sport}{daytime.isoformat()}{user_id}")
+        key = self.encrypt.generate_hash_key(f"{sport}{daytime.isoformat()}{user_id}")
 
-        try:
-            # Execute query to insert the values into the database
-            self.cursor.execute("""
-                INSERT INTO lessons (lesson_id, user_id, datetime, sport, trainer, message_sent, response)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-            """, (key, user_id, str(daytime), sport, trainer, message_sent, response))
+        # Execute query to insert the values into the database
+        self.cursor.execute("""
+            INSERT INTO lessons (lesson_id, user_id, datetime, sport, trainer, message_sent, response)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (key, user_id, str(daytime), sport, trainer, message_sent, response))
 
-            # Commit the changes to the database
-            self.conn.commit()
+        # Commit the changes to the database
+        self.conn.commit()
 
-            # Return the generated key sush that it can be used in the program for querying the record later on
-            return key
+        # Return the generated key sush that it can be used in the program for querying the record later on
+        return key
 
-        except Error as e:
-            self.conn.rollback()
-            raise e
-
+    @rollback_on_error
     def has_received_update(self, sport:str, daytime:dt, user_id:str) -> bool:
         """
         Check if the specified sport and datetime combination has already received an email.
@@ -237,6 +201,7 @@ class db():
         # result is filled
         return bool(result)
 
+    @rollback_on_error
     def get_lesson_data_by_key(self, key_les) -> list[str, int, bool]:
         """
         Retrieve lesson data from the database by lesson ID.
@@ -285,6 +250,7 @@ class db():
 
         return dict_result
 
+    @rollback_on_error
     def get_user(self, id:str, query_key:streams="user_id") -> dict[str, object]:
         """
         Retrieve a user's information from the database based on a specified query key.
@@ -323,16 +289,21 @@ class db():
         # Because the key should be unique, there should only be one record. So take that one
         result = self.cursor.fetchone()
 
+        # If result is none, return an error as it's not unique
+        if not result:
+            raise ValueError(f"User {id} not found")
+
         # Create a dictionary for the result for easy handling
         cols = [desc[0] for desc in self.cursor.description]
         result_dict = dict(zip(cols, result))
 
         # Decrypt the password
-        result_dict['password'] = decrypt_data(result_dict['password'])
+        result_dict['password'] = self.encrypt.decrypt_data(result_dict['password'])
 
         # Return the result
         return result_dict
 
+    @rollback_on_error
     def edit_data_point(self, key_les:str, col:str, value:str, table:str="lessons", key_column="lesson_id") -> None:
         """
         Update a specific column of a lesson record in the database.
@@ -370,6 +341,7 @@ class db():
         # Commit the changes to the database
         self.conn.commit()
 
+    @rollback_on_error
     def get_all_users_in_sport(self, sport:str) -> list[dict[str, str]]:
         """
         Retrieve a list of all users participating in a specific sport.

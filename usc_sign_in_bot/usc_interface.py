@@ -28,7 +28,7 @@ logging.basicConfig(
 logging.getLogger("httpx").setLevel(logging.INFO)
 logger = logging.getLogger(__name__)
 
-class USC_Interface(webdriver.Chrome):
+class UscInterface(webdriver.Chrome):
 
     def __init__(self, username:str, password:str, uva_login:bool=False):
         service = Service(ChromeDriverManager().install())
@@ -405,7 +405,7 @@ class USC_Interface(webdriver.Chrome):
 
 if __name__ == "__main__":
     load_dotenv()
-    driver = USC_Interface(
+    driver = UscInterface(
         os.environ['UVA_USERNAME'],
         os.environ['UVA_PASSWORD'],
         uva_login=True
