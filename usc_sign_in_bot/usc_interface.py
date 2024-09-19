@@ -220,6 +220,7 @@ class UscInterface(webdriver.Chrome):
 
         if not extracted_time:
             logger.error(f"Time extraction Failed for {slot}")
+            raise ValueError(f"Time Extraction failed for slot {slot}")
 
         # Comibine the time from the element with the days ahead to a datetime object
         dt_time : dt = dt.combine(
