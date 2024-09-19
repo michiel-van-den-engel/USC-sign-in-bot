@@ -20,5 +20,7 @@ jobs:
         python -m pip install -r requirements.txt
         pip install pytest pytest-asyncio
     - name: Analysing the code with pylint
+      env:
+        BOTTOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         pytest
