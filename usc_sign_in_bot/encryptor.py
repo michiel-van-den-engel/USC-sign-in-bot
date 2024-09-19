@@ -68,3 +68,6 @@ class Encryptor():
         plaintext = unpadder.update(padded_plaintext) + unpadder.finalize()
 
         return plaintext.decode('utf-8')
+
+def something_extra():
+    pass
