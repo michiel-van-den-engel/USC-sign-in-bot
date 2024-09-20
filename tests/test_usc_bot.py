@@ -1,18 +1,28 @@
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock, ANY, call
-from telegram.error import Forbidden
 from datetime import datetime as dt
+from unittest.mock import ANY, AsyncMock, MagicMock, call, patch
+
+import pytest
+from telegram.error import Forbidden
+
 from usc_sign_in_bot.usc_bot import main
+
 
 @pytest.fixture
 def mock_usc():
     """Mock the usc object to return predefined lessons."""
     usc_mock = MagicMock()
     usc_mock.get_all_lessons.return_value = [
-        {"time": dt.strptime("2024-09-17T18:00:00", "%Y-%m-%dT%H:%M:%S"), "trainer": "John Doe"},
-        {"time": dt.strptime("2024-09-20T20:00:00", "%Y-%m-%dT%H:%M:%S"), "trainer": "Doe John"}
+        {
+            "time": dt.strptime("2024-09-17T18:00:00", "%Y-%m-%dT%H:%M:%S"),
+            "trainer": "John Doe",
+        },
+        {
+            "time": dt.strptime("2024-09-20T20:00:00", "%Y-%m-%dT%H:%M:%S"),
+            "trainer": "Doe John",
+        },
     ]
     return usc_mock
+
 
 @pytest.fixture
 def mock_application():
@@ -21,17 +31,19 @@ def mock_application():
     app_mock.bot.send_message = AsyncMock()
     return app_mock
 
+
 @pytest.fixture
 def mock_db():
     """Mock the database object (usc_db)."""
     db_mock = MagicMock()
     db_mock.get_all_users_in_sport.return_value = [
         {"user_id": 1, "telegram_id": 1001},
-        {"user_id": 2, "telegram_id": 1002}
+        {"user_id": 2, "telegram_id": 1002},
     ]
     db_mock.has_received_update.return_value = False
     db_mock.add_to_data.return_value = "key123"
     return db_mock
+
 
 @pytest.mark.asyncio
 async def test_send_messages(mock_application, mock_usc, mock_db):
@@ -42,8 +54,9 @@ async def test_send_messages(mock_application, mock_usc, mock_db):
     mock_application.bot.send_message.assert_called_with(
         1002,
         "There is a fencing lesson Friday at 20:00. The trainer is Doe John. Would you like to go?",
-        reply_markup=ANY
+        reply_markup=ANY,
     )
+
 
 @pytest.mark.asyncio
 async def test_skip_if_received_update(mock_application, mock_usc, mock_db):
@@ -53,6 +66,7 @@ async def test_skip_if_received_update(mock_application, mock_usc, mock_db):
     await main(mock_application, mock_usc, mock_db)
 
     mock_application.bot.send_message.assert_not_called()
+
 
 @pytest.mark.asyncio
 @patch("usc_sign_in_bot.usc_bot.logger.error")
