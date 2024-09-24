@@ -11,7 +11,7 @@ fail-under=10.0
 
 [MESSAGES CONTROL]
 # Disable the message, report, category or checker with the given id(s).
-disable=C0199,E0401,R0913,E1121,E0611
+disable=C0199,E0401,E0611
 
 # Disable the score feature, we want it right
 score=no
@@ -28,7 +28,7 @@ single-line-if-stmt=no
 [DESIGN]
 
 # Maximum number of arguments for function / method.
-max-args=5
+max-args=10
 
 [DOCSTRING]
 # Require all classes and methods to have a docstring.
