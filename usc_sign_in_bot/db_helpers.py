@@ -130,7 +130,6 @@ class UscDataBase:
             return user_id
 
     @rollback_on_error
-    # pylint: disable=too-many-arguments
     def add_to_data(
         self,
         sport: str,
@@ -343,7 +342,6 @@ class UscDataBase:
         return result_dict
 
     @rollback_on_error
-    # pylint: disable=too-many-arguments
     def edit_data_point(
         self,
         key_les: str,
