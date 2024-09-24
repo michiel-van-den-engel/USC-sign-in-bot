@@ -1,15 +1,14 @@
+# pylint: disable=redefined-outer-name, protected-access
 """Module where you can find the tests for the USC Interface"""
 
 import json
-import time
 from datetime import datetime as dt
 from datetime import timedelta
 from unittest.mock import ANY, MagicMock, patch
 
 import pytest
-from selenium.common.exceptions import NoSuchElementException, TimeoutException
+from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as EC
 
 from usc_sign_in_bot import UscInterface
 
@@ -25,23 +24,23 @@ def mock_browser():
     """Fixture for mocking the UscInterface class."""
     with patch(
         "usc_sign_in_bot.usc_interface.webdriver.Chrome", new=MagicMock
-    ) as MockChrome:
-        mock_instance = MockChrome.return_value
+    ) as mock_chrome:
+        mock_instance = mock_chrome.return_value
         yield mock_instance
 
 
 @pytest.fixture
-def usc_interface(mock_browser):
+def usc_interface():
     """Fixture for creating a UscInterface instance."""
     with patch.object(
         UscInterface, "_login", return_value=None
-    ) as mock_login, patch.object(
+    ) as _, patch.object(
         UscInterface, "_set_browser_timezone", return_value=None
     ):
         return UscInterface(username="testuser", password="testpass", uva_login=True)
 
 
-def test_constructor_calls_login_and_set_timezone(mock_browser):
+def test_constructor_calls_login_and_set_timezone():
     """Test if constructor calls login and sets the timezone."""
     with patch.object(
         UscInterface, "_login", return_value=None
@@ -106,7 +105,7 @@ def test_select_element(usc_interface):
         mock_wait.return_value.until.assert_called_once()
 
 
-def test_select_all_elements(usc_interface, mock_browser):
+def test_select_all_elements(usc_interface):
     """Test selecting all elements matching a selector."""
     with patch("usc_sign_in_bot.usc_interface.WebDriverWait") as mock_wait:
         mock_element1 = MagicMock()
@@ -120,7 +119,7 @@ def test_select_all_elements(usc_interface, mock_browser):
         mock_wait.return_value.until.assert_called_once()
 
 
-def test_filter_for_sport(usc_interface, mock_browser):
+def test_filter_for_sport(usc_interface):
     """Test filtering for a specific sport."""
     with patch.object(
         usc_interface, "_select_element", side_effect=MagicMock()
@@ -209,7 +208,7 @@ def test_extract_info_from_timeslot(mock_sleep, usc_interface):
     mock_sleep.assert_called_once()
 
 
-def test_extract_info_from_timeslot_error_handling(usc_interface, mock_browser):
+def test_extract_info_from_timeslot_error_handling(usc_interface):
     """Test error handling in the extraction of info from a timeslot when time extraction fails."""
     slot = MagicMock()
     slot.find_element.side_effect = [
@@ -235,13 +234,13 @@ def test_loop_over_the_days(usc_interface):
         usc_interface,
         "_select_all_elements",
         return_value=[MagicMock() for _ in range(3)],
-    ) as mock_select_elements, patch.object(
+    ) as _, patch.object(
         usc_interface, "_click_and_find_element"
     ), patch.object(
         usc_interface,
         "_filter_webelements",
         return_value=[MagicMock() for _ in range(2)],
-    ) as mock_filter_elements, patch.object(
+    ) as _, patch.object(
         usc_interface, "execute_script"
     ), patch.object(
         usc_interface, "reset_driver"
@@ -268,7 +267,7 @@ def test_select_day(usc_interface, weekdays):
         usc_interface,
         "_select_all_elements",
         return_value=[MagicMock() for _ in range(5)],
-    ) as mock_select_elements, patch.object(
+    ) as _, patch.object(
         usc_interface, "_filter_webelements", side_effect=[[MagicMock()], []]
     ) as mock_filter_elements, patch.object(
         usc_interface, "execute_script"

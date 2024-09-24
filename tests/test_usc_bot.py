@@ -1,5 +1,7 @@
+# pylint: disable=redefined-outer-name, protected-access
+"""Define tests for the usc bot job in this module"""
 from datetime import datetime as dt
-from unittest.mock import ANY, AsyncMock, MagicMock, call, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
 from telegram.error import Forbidden
