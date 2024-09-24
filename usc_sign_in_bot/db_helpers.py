@@ -129,8 +129,8 @@ class UscDataBase:
             self.conn.rollback()
             return user_id
 
-    # pylint: disable=too-many-arguments
     @rollback_on_error
+    # pylint: disable=too-many-arguments
     def add_to_data(
         self,
         sport: str,
@@ -342,15 +342,15 @@ class UscDataBase:
         # Return the result
         return result_dict
 
-    # pylint: disable=too-many-arguments
     @rollback_on_error
+    # pylint: disable=too-many-arguments
     def edit_data_point(
         self,
         key_les: str,
         col: str,
         value: str,
         table: str = "lessons",
-        key_column="lesson_id",
+        key_column="lesson_id"
     ) -> None:
         """
         Update a specific column of a lesson record in the database.
