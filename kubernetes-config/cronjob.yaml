@@ -26,14 +26,19 @@ spec:
                 secretKeyRef:
                   name: uva-login
                   key: username
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: postgressysuser
+                  key: database
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
-                  name: postgres_values
-                  key: user
+                  name: postgressysuser
+                  key: username
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: postgres_values
+                  name: postgressysuser
                   key: password
           restartPolicy: OnFailure
