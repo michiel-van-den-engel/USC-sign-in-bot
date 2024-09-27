@@ -43,3 +43,7 @@ spec:
               secretKeyRef:
                 name: postgressysuser
                 key: password
+          - name: POSTGRES_HOST
+            value: postgres
+          - name: POSTGRES_PORT
+            value: "5432"

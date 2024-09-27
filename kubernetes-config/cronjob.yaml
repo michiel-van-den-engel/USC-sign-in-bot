@@ -23,6 +23,11 @@ spec:
                 secretKeyRef:
                   name: uva-login
                   key: username
+            - name: BOTTOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: telegram-bottoken
+                  key: BOTTOKEN
             - name: POSTGRES_DB
               valueFrom:
                 secretKeyRef:
@@ -38,4 +43,8 @@ spec:
                 secretKeyRef:
                   name: postgressysuser
                   key: password
+            - name: POSTGRES_HOST
+              value: postgres
+            - name: POSTGRES_PORT
+              value: "5432"
           restartPolicy: OnFailure

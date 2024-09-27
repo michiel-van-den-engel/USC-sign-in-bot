@@ -38,7 +38,7 @@ class UscDataBase:
             user=os.environ.get("POSTGRES_USER"),
             password=os.environ.get("POSTGRES_PASSWORD"),
             host=os.environ.get("POSTGRES_HOST", "localhost"),
-            port=os.environ.get("POSTGRES_PORT", "5432"),
+            port=int(os.environ.get("POSTGRES_PORT", 5432))
         )
         self.cursor = self.conn.cursor()
         self.encrypt = Encryptor(os.environ.get("ENCRYPT_KEY"))
