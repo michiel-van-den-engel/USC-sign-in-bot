@@ -1,6 +1,9 @@
 name: pylint
 
-on: [push]
+on:
+  pull_request:
+    branches:
+      - main
 
 jobs:
   build:
