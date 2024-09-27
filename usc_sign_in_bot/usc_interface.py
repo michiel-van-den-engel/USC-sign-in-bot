@@ -1,24 +1,26 @@
+"""Module to hold the """
+import json
+import logging
 import os
 import time
-import logging
+from datetime import datetime as dt
+from datetime import timedelta
 
-import json
-from datetime import datetime as dt, timedelta
-
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.by import By
-from selenium.common.exceptions import NoSuchElementException, TimeoutException
-from webdriver_manager.chrome import ChromeDriverManager
 from dotenv import load_dotenv
+from selenium import webdriver
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
+from webdriver_manager.chrome import ChromeDriverManager
 
-USC_URL = 'https://my.uscsport.nl/pages/login'
+USC_URL = "https://my.uscsport.nl/pages/login"
 TIMEZONE = "Europe/Amsterdam"
 
-weekdays = json.load(open("shortened_weekdays.json", "r", encoding="UTF-8"))['NL']
+with open("shortened_weekdays.json", "r", encoding="UTF-8") as file:
+    weekdays = json.load(file)["NL"]
 
 # Enable logging
 logging.basicConfig(
@@ -28,11 +30,13 @@ logging.basicConfig(
 logging.getLogger("httpx").setLevel(logging.INFO)
 logger = logging.getLogger(__name__)
 
-class UscInterface(webdriver.Chrome):
 
-    def __init__(self, username:str, password:str, uva_login:bool=False):
+class UscInterface(webdriver.Chrome):
+    """Interface to interact with USC"""
+
+    def __init__(self, username: str, password: str, uva_login: bool = False):
         service = Service(ChromeDriverManager().install())
-        
+
         chrome_options = Options()
         chrome_options.add_argument("--headless")
         chrome_options.add_argument("--disable-gpu")
@@ -45,7 +49,7 @@ class UscInterface(webdriver.Chrome):
 
         self._login(username, password, uva_login)
 
-    def _login(self, username:str, password:str, uva_login:bool=False) -> None:
+    def _login(self, username: str, password: str, uva_login: bool = False) -> None:
         """Login to the my USC environment"""
         self.get(USC_URL)
 
@@ -53,9 +57,12 @@ class UscInterface(webdriver.Chrome):
             self._login_with_uva(username, password)
 
         else:
-            raise NotImplementedError("For now it will only work with UVA login, feel free to add it yourself in a pull request!")
+            raise NotImplementedError(
+                "For now it will only work with UVA login, feel free to add it yourself in a pull"+
+                "request!"
+            )
 
-    def _login_with_uva(self, username:str, password:str):
+    def _login_with_uva(self, username: str, password: str):
         """Call this function to handle the UVA login page"""
         # Start with clicking the button to redirect to the uva login
         self._select_element('button[data-test-id="oidc-login-button"]').click()
@@ -63,33 +70,34 @@ class UscInterface(webdriver.Chrome):
         # Wait up to 10 seconds for the button to become clickable
         try:
             # Because sometimes it shows this element and other times the other, let's try both
-           self._select_element('li[data-title="universiteit van amsterdam"]').click()
-            
-        except Exception as e:
-            button = self._select_element('input[value="http://login.uva.nl/adfs/services/trust"]')\
-                .find_element(By.XPATH, "..")\
-                .find_element(By.TAG_NAME, 'button')
+            self._select_element('li[data-title="universiteit van amsterdam"]').click()
+
+        # pylint: disable=broad-exception-caught
+        except Exception:
+            button = (
+                self._select_element(
+                    'input[value="http://login.uva.nl/adfs/services/trust"]'
+                )
+                .find_element(By.XPATH, "..")
+                .find_element(By.TAG_NAME, "button")
+            )
             self.execute_script("arguments[0].click();", button)
-        
+
         # Wait for the username field to be present and fill it in
-        self._select_element('input[id="userNameInput"]')\
-            .send_keys(username)
-        
+        self._select_element('input[id="userNameInput"]').send_keys(username)
+
         # Wait for the password field to be present and fill it in
-        self._select_element('input[id="passwordInput"]')\
-            .send_keys(password)
-        
+        self._select_element('input[id="passwordInput"]').send_keys(password)
+
         # Find and click the submit button
         self._select_element('span[id="submitButton"]').click()
 
         logger.info("UVA login successfull")
 
     def _set_browser_timezone(self, timezone):
-        self.execute_cdp_cmd('Emulation.setTimezoneOverride', {
-            'timezoneId': timezone
-        })
+        self.execute_cdp_cmd("Emulation.setTimezoneOverride", {"timezoneId": timezone})
 
-    def _click_and_find_element(self, css_selector:str) -> None:
+    def _click_and_find_element(self, css_selector: str) -> None:
         """
         Click an element specified by the CSS selector using JavaScript.
 
@@ -105,8 +113,8 @@ class UscInterface(webdriver.Chrome):
 
         Notes
         -----
-        This method uses JavaScript to perform the click action on the element, which can 
-        be useful when the standard Selenium click method is obstructed or fails due to 
+        This method uses JavaScript to perform the click action on the element, which can
+        be useful when the standard Selenium click method is obstructed or fails due to
         overlaying elements or other issues.
 
         Examples
@@ -116,15 +124,14 @@ class UscInterface(webdriver.Chrome):
         element = self._select_element(css_selector)
         self.execute_script("arguments[0].click();", element)
 
-    def _select_element(self, 
-            selector_path:str,
-            select_with:webdriver.common.by.By=By.CSS_SELECTOR
-        ) -> webdriver.remote.webelement.WebElement:
+    def _select_element(
+        self, selector_path: str, select_with: webdriver.common.by.By = By.CSS_SELECTOR
+    ) -> webdriver.remote.webelement.WebElement:
         """
         Search for a single web element using a specified selector.
 
         This method waits for a web element to be present on the page and then returns it.
-        The search is conducted based on the selector path provided and the selection method 
+        The search is conducted based on the selector path provided and the selection method
         (e.g., CSS selector, XPath, etc.).
 
         Parameters
@@ -132,7 +139,8 @@ class UscInterface(webdriver.Chrome):
         selector_path : str
             The path of the selector used to locate the web element (e.g., a CSS selector or XPath).
         select_with : selenium.webdriver.common.by.By, optional
-            The type of selector to use (e.g., By.CSS_SELECTOR, By.XPATH, etc.). The default is By.CSS_SELECTOR.
+            The type of selector to use (e.g., By.CSS_SELECTOR, By.XPATH, etc.). The default is 
+            By.CSS_SELECTOR.
 
         Returns
         -------
@@ -148,7 +156,11 @@ class UscInterface(webdriver.Chrome):
             EC.presence_of_element_located((select_with, selector_path))
         )
 
-    def _select_all_elements(self, selector_path:str, selector_with:webdriver.common.by.By=By.CSS_SELECTOR) -> list[webdriver.remote.webelement.WebElement]:
+    def _select_all_elements(
+        self,
+        selector_path: str,
+        selector_with: webdriver.common.by.By = By.CSS_SELECTOR,
+    ) -> list[webdriver.remote.webelement.WebElement]:
         """
         Select all web elements matching the given selector path.
 
@@ -160,7 +172,8 @@ class UscInterface(webdriver.Chrome):
         selector_path : str
             # The selector path used to locate the web elements (e.g., a CSS selector or XPath).
         selector_with : selenium.webdriver.common.by.By, optional
-            The type of selector to use (e.g., By.CSS_SELECTOR, By.XPATH). Defaults to By.CSS_SELECTOR.
+            The type of selector to use (e.g., By.CSS_SELECTOR, By.XPATH). Defaults to
+            By.CSS_SELECTOR.
 
         Returns
         -------
@@ -175,8 +188,8 @@ class UscInterface(webdriver.Chrome):
         return WebDriverWait(self, 2).until(
             EC.presence_of_all_elements_located((selector_with, selector_path))
         )
-    
-    def _filter_for_sport(self, sport:str) -> None:
+
+    def _filter_for_sport(self, sport: str) -> None:
         """Set the filter for the sport we want to filter for"""
 
         # Click the dropdown menu with the filters
@@ -184,61 +197,68 @@ class UscInterface(webdriver.Chrome):
         dropdown.click()
 
         # Find the right element fitting with the sport
-        sports_element = self._select_element(f'//li[label[text()="{sport}"]]', select_with=By.XPATH)
+        sports_element = self._select_element(
+            f'//li[label[text()="{sport}"]]', select_with=By.XPATH
+        )
 
         # Click the selection box
-        input_element = sports_element.find_element(By.TAG_NAME, 'input')
+        input_element = sports_element.find_element(By.TAG_NAME, "input")
         self.execute_script("arguments[0].click();", input_element)
 
         # Click again on the dropdown to make it go away
         dropdown.click()
-    
-    def _filter_webelements(self, list_of_webelements: list[webdriver.remote.webelement.WebElement], xPathCondition:str) -> list[webdriver.remote.webelement.WebElement]:
+
+    def _filter_webelements(
+        self,
+        list_of_webelements: list[webdriver.remote.webelement.WebElement],
+        x_path_condition: str,
+    ) -> list[webdriver.remote.webelement.WebElement]:
         """Filter the elements for a specific XPATH. If it has the XPATH, return the elements"""
         # Create a return list
         filtered_elements = []
 
-    	# Loop over the webelements
+        # Loop over the webelements
         for element in list_of_webelements:
             try:
                 # Try to find the elements, append it if it exists, continue if not.
-                _ = element.find_element(By.XPATH, xPathCondition)
+                _ = element.find_element(By.XPATH, x_path_condition)
                 filtered_elements.append(element)
             except NoSuchElementException:
                 continue
-    
+
         # Return the filtered elements
         return filtered_elements
-    
+
     @staticmethod
     def _extract_info_from_timeslot(slot, day_ahead):
         """Extract the info from a timeslot element"""
         # Sleep such that the slot is loaded correctly
         time.sleep(0.2)
-        extracted_time = slot.find_element(By.CSS_SELECTOR, 'p[data-test-id="bookable-slot-start-time"] > strong').text
-        trainer : str = slot.find_element(By.CSS_SELECTOR, 'span[data-test-id="bookable-slot-supervisor-first-name"]').text
+        extracted_time = slot.find_element(
+            By.CSS_SELECTOR, 'p[data-test-id="bookable-slot-start-time"] > strong'
+        ).text
+        trainer: str = slot.find_element(
+            By.CSS_SELECTOR, 'span[data-test-id="bookable-slot-supervisor-first-name"]'
+        ).text
 
         if not extracted_time:
-            logger.error(f"Time extraction Failed for {slot}")
+            logger.error(f"Time extraction Failed for %s {slot}")
             raise ValueError(f"Time Extraction failed for slot {slot}")
 
         # Comibine the time from the element with the days ahead to a datetime object
-        dt_time : dt = dt.combine(
-            dt.now() + timedelta(days=day_ahead-1),
-            dt.strptime(extracted_time, "%H:%M").time()
+        dt_time: dt = dt.combine(
+            dt.now() + timedelta(days=day_ahead - 1),
+            dt.strptime(extracted_time, "%H:%M").time(),
         )
-        
-        return {
-            "time": dt_time,
-            "trainer": trainer
-        }
 
-    def _loop_over_the_days(self, target_days:int, sport:str, function_to_do:exec):
+        return {"time": dt_time, "trainer": trainer}
+
+    def _loop_over_the_days(self, target_days: int, sport: str, function_to_do: exec):
         """
         Loop over the days to perform a specified action for a given number of days.
 
-        This method iterates over a set number of days, selects each day, and performs 
-        a specified action (function) for each available sports slot on the selected day. 
+        This method iterates over a set number of days, selects each day, and performs
+        a specified action (function) for each available sports slot on the selected day.
         The days are advanced if necessary until the target number of days is reached.
 
         Parameters
@@ -266,10 +286,15 @@ class UscInterface(webdriver.Chrome):
 
             if not days:
                 # Move foreword for the number of the days shown
-                for _ in range(day_length): self._click_and_find_element('a[data-test-id="advance-one-day-button"]')
+                for _ in range(day_length):
+                    self._click_and_find_element(
+                        'a[data-test-id="advance-one-day-button"]'
+                    )
 
                 # Now select all the days in our new window
-                days = self._select_all_elements('a[data-test-id-day-selector="day-selector"]')
+                days = self._select_all_elements(
+                    'a[data-test-id-day-selector="day-selector"]'
+                )
 
             # Get first element
             day = days.pop(0)
@@ -280,69 +305,83 @@ class UscInterface(webdriver.Chrome):
 
             # Now get the list of sports available
             try:
-                sorting_slots = self._select_all_elements('div[data-test-id="bookable-slot-list"]')
-                slots = self._filter_webelements(sorting_slots, f'.//*[contains(text(), "{sport}")]')
+                sorting_slots = self._select_all_elements(
+                    'div[data-test-id="bookable-slot-list"]'
+                )
+                slots = self._filter_webelements(
+                    sorting_slots, f'.//*[contains(text(), "{sport}")]'
+                )
             except TimeoutException:
                 continue
 
             # Depending on what we loop over for, do different actions
             result.extend([function_to_do(slot, days_ahead) for slot in slots])
-        
+
         return result
-    
-    def _select_day(self, date:dt) -> None:
+
+    def _select_day(self, go_to_date: dt) -> None:
         """Make sure to go to specific day in the USC interface"""
-        if date.date() < dt.today().date():
+        if go_to_date.date() < dt.today().date():
             raise ValueError("Date is in the past")
 
-        if date.date() == dt.today().date():
+        if go_to_date.date() == dt.today().date():
             date_str = "Vandaag"
 
         else:
-            date_str = f"{weekdays[date.strftime('%w')]} {date.strftime('%-d-%-m')}"
+            date_str = f"{weekdays[go_to_date.strftime('%w')]} {go_to_date.strftime('%-d-%-m')}"
 
         while True:
-            days = self._select_all_elements('a[data-test-id-day-selector="day-selector"]')
-            date_selector = self._filter_webelements(days, f'.//*[contains(text(), "{date_str}")]')
-        
+            days = self._select_all_elements(
+                'a[data-test-id-day-selector="day-selector"]'
+            )
+            date_selector = self._filter_webelements(
+                days, f'.//*[contains(text(), "{date_str}")]'
+            )
+
             if len(date_selector) > 0:
                 break
-            
-            for _ in range(len(days)): self._select_element('a[data-test-id="advance-one-day-button"]').click()
-        
+
+            for _ in range(len(days)):
+                self._select_element('a[data-test-id="advance-one-day-button"]').click()
+
         self.execute_script("arguments[0].click();", date_selector[0])
-    
-    def _click_bookable_right_course(self, sport:str, date:dt):
-        """Find the right course and click on it. We assume we are allready on the correct day and that the course exists"""
+
+    def _click_bookable_right_course(self, sport: str, course_date: dt):
+        """Find the right course and click on it. We assume we are allready on the correct day and
+        that the course exists"""
 
         # Start by extracting the rightly formatted time
-        time_str = date.strftime('%H:%M')
+        time_str = course_date.strftime("%H:%M")
 
         # Get all the slots in the day
-        sorting_slots = self._select_all_elements('div[data-test-id="bookable-slot-list"]')
+        sorting_slots = self._select_all_elements(
+            'div[data-test-id="bookable-slot-list"]'
+        )
 
         html_output = "<ul>\n"
-    
+
         # Convert each element into an <li> HTML tag
         for element in sorting_slots:
             html_output += f"  <li>{element.text}</li>\n"
-        
+
         # Close the HTML tag
         html_output += "</ul>"
 
-        with open('tyr.html', 'w') as file:
-            file.write(html_output)
-
         # Then filter those sorts for one with the right sport and the right time
-        slots = self._filter_webelements(sorting_slots, f"*[contains(., '{sport}') and contains(., '{time_str}')]")
+        slots = self._filter_webelements(
+            sorting_slots, f"*[contains(., '{sport}') and contains(., '{time_str}')]"
+        )
 
-        # Assuming there are no slots with the same sport and time there is only one slot left. For that slot find the button 
-        # for booking and click on that button
-        button = slots[0].find_element(By.CSS_SELECTOR, 'button[data-test-id="bookable-slot-book-button"]')
+        # Assuming there are no slots with the same sport and time there is only one slot left. For
+        # that slot find the button for booking and click on that button
+        button = slots[0].find_element(
+            By.CSS_SELECTOR, 'button[data-test-id="bookable-slot-book-button"]'
+        )
         self.execute_script("arguments[0].click()", button)
-    
+
     def _click_sign_on(self) -> None:
-        """We have arrived at the extra information page, now we need to click on the last booking button"""
+        """We have arrived at the extra information page, now we need to click on the last booking
+        button"""
         # First click on the reserve button
         button = self._select_element('button[data-test-id="details-book-button"]')
         self.execute_script("arguments[0].click()", button)
@@ -352,35 +391,43 @@ class UscInterface(webdriver.Chrome):
 
     def reset_driver(self) -> None:
         """Reset the browser such that the next operation can be performed"""
-        
+
         while True:
             # Now get the days that are shown in the header
-            days = self._select_all_elements('a[data-test-id-day-selector="day-selector"]')
+            days = self._select_all_elements(
+                'a[data-test-id-day-selector="day-selector"]'
+            )
 
-            # If there is an element headed with 'Vandaag' (today), break the loop as we have arrived at the start of
-            # history and the driver has been resetted for the next request
-            if len(self._filter_webelements(days, "//*[contains(text(), 'Vandaag')]")) > 0:
+            # If there is an element headed with 'Vandaag' (today), break the loop as we have
+            # arrived at the start of history and the driver has been resetted for the next request
+            if (
+                len(self._filter_webelements(days, "//*[contains(text(), 'Vandaag')]"))
+                > 0
+            ):
                 break
 
             # Move back one day
-            self._select_element('//i[@class="fa fa-chevron-left"]/..', select_with=By.XPATH).click()
+            self._select_element(
+                '//i[@class="fa fa-chevron-left"]/..', select_with=By.XPATH
+            ).click()
 
-    def sign_up_for_lesson(self, sport:str, date:dt) -> bool:
+    def sign_up_for_lesson(self, sport: str, lesson_date: dt) -> bool:
         """Sign up for a lesson based on day and time and sport"""
         try:
             self._filter_for_sport(sport)
-            self._select_day(date)
-            self._click_bookable_right_course(sport, date)
+            self._select_day(lesson_date)
+            self._click_bookable_right_course(sport, lesson_date)
             self._click_sign_on()
 
         finally:
             self.reset_driver()
 
-    def get_all_lessons(self, sport:str, days_in_future:int=7):
+    def get_all_lessons(self, sport: str, days_in_future: int = 7):
         """
-        Retrieve a list of all lessons available for a specified sport over a given number of future days.
+        Retrieve a list of all lessons available for a specified sport over a given number of 
+        future days.
 
-        This method filters lessons based on the specified sport and then iterates over the 
+        This method filters lessons based on the specified sport and then iterates over the
         specified number of future days to collect information about the available lessons.
 
         Parameters
@@ -399,17 +446,18 @@ class UscInterface(webdriver.Chrome):
 
             self._filter_for_sport(sport)
 
-            return self._loop_over_the_days(days_in_future, sport, self._extract_info_from_timeslot)
-        
+            return self._loop_over_the_days(
+                days_in_future, sport, self._extract_info_from_timeslot
+            )
+
         finally:
             self.reset_driver()
+
 
 if __name__ == "__main__":
     load_dotenv()
     driver = UscInterface(
-        os.environ['UVA_USERNAME'],
-        os.environ['UVA_PASSWORD'],
-        uva_login=True
+        os.environ["UVA_USERNAME"], os.environ["UVA_PASSWORD"], uva_login=True
     )
     date = dt(2024, 8, 19, 19, 0, 0)
     driver.sign_up_for_lesson("Schermen", date)
