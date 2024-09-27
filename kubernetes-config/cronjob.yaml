@@ -11,7 +11,7 @@ spec:
           containers:
           - name: usc-sign-in-bot
             image: michielvandenengel/usc-bot:latest
-            command: ["python", "usc_sign_in_bot/usc_bot.py"]
+            command: ["python", "-m", "usc_sign_in_bot", "job"]
             volumeMounts:
             - mountPath: /app/usc_database.db
               name: database-storage
