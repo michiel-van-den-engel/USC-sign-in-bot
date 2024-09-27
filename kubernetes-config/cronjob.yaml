@@ -12,9 +12,6 @@ spec:
           - name: usc-sign-in-bot
             image: michielvandenengel/usc-bot:latest
             command: ["python", "-m", "usc_sign_in_bot", "job"]
-            volumeMounts:
-            - mountPath: /app/usc_database.db
-              name: database-storage
             env:
             - name: UVA_USERNAME
               valueFrom:
