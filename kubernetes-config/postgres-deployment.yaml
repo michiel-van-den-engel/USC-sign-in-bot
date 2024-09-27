@@ -22,17 +22,17 @@ spec:
             - name: POSTGRES_DB
               valueFrom:
                 secretKeyRef:
-                  name: postgres_values
-                  key: db_value
+                  name: postgressysuser
+                  key: database
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
-                  name: postgres_values
-                  key: user
+                  name: postgressysuser
+                  key: username
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: postgres_values
+                  name: postgressysuser
                   key: password
           volumeMounts:
             - name: postgres-storage
