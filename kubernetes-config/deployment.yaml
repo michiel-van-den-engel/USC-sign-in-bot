@@ -28,10 +28,13 @@ spec:
               secretKeyRef:
                 name: telegram-bottoken
                 key: BOTTOKEN
-          volumeMounts:
-            - mountPath: /app/usc_database.db
-              name: database-storage
-      volumes:
-        - name: database-storage
-          persistentVolumeClaim:
-            claimName: usc-database-pvc
+          - name: POSTGRES_USER
+            valueFrom:
+              secretKeyRef:
+                name: postgres_values
+                key: user
+          - name: POSTGRES_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: postgres_values
+                key: password
