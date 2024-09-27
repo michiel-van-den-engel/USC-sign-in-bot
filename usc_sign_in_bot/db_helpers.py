@@ -129,6 +129,7 @@ class UscDataBase:
             self.conn.rollback()
             return user_id
 
+    # pylint: disable=too-many-positional-arguments
     @rollback_on_error
     def add_to_data(
         self,
@@ -341,6 +342,7 @@ class UscDataBase:
         # Return the result
         return result_dict
 
+    # pylint: disable=too-many-positional-arguments
     @rollback_on_error
     def edit_data_point(
         self,
