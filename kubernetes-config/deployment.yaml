@@ -16,7 +16,7 @@ spec:
       containers:
         - name: usc-telegram-container
           image: michielvandenengel/usc-bot:latest
-          command: ["python", "usc_sign_in_bot/telegram_bot.py"]
+          command: ["python", "-m", "usc_sign_in_bot", "bot"]
           env:
           - name: ENCRYPT_KEY
             valueFrom:
