@@ -26,8 +26,19 @@ spec:
                 secretKeyRef:
                   name: uva-login
                   key: username
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: postgressysuser
+                  key: database
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgressysuser
+                  key: username
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgressysuser
+                  key: password
           restartPolicy: OnFailure
-          volumes:
-          - name: database-storage
-            persistentVolumeClaim:
-              claimName: usc-database-pvc
