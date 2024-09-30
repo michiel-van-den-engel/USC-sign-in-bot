@@ -94,6 +94,12 @@ class UscInterface(webdriver.Chrome):
 
         logger.info("UVA login successfull")
 
+    def _log_page_to_output_file(self):
+        """Logs the page to html output in case of errors such that it can be inspected where the
+        error came from"""
+        with open('error_output_page.html', 'w', encoding='utf-8') as file:
+            file.write(self.page_source)
+
     def _set_browser_timezone(self, timezone):
         self.execute_cdp_cmd("Emulation.setTimezoneOverride", {"timezoneId": timezone})
 
@@ -152,9 +158,13 @@ class UscInterface(webdriver.Chrome):
         selenium.common.exceptions.TimeoutException
         If the element is not found within the specified wait time.
         """
-        return WebDriverWait(self, 5).until(
-            EC.presence_of_element_located((select_with, selector_path))
-        )
+        try:
+            return WebDriverWait(self, 5).until(
+                EC.presence_of_element_located((select_with, selector_path))
+            )
+        except TimeoutException as timeoutError:
+            self._log_page_to_output_file()
+            raise timeoutError
 
     def _select_all_elements(
         self,
@@ -185,9 +195,14 @@ class UscInterface(webdriver.Chrome):
         selenium.common.exceptions.TimeoutException
             If the elements are not found within the specified wait time.
         """
-        return WebDriverWait(self, 2).until(
-            EC.presence_of_all_elements_located((selector_with, selector_path))
-        )
+        try:
+            return WebDriverWait(self, 10).until(
+                EC.presence_of_all_elements_located((selector_with, selector_path))
+            )
+        except TimeoutException as error:
+            self._log_page_to_output_file()
+            raise error
+
 
     def _filter_for_sport(self, sport: str) -> None:
         """Set the filter for the sport we want to filter for"""
@@ -357,15 +372,6 @@ class UscInterface(webdriver.Chrome):
         sorting_slots = self._select_all_elements(
             'div[data-test-id="bookable-slot-list"]'
         )
-
-        html_output = "<ul>\n"
-
-        # Convert each element into an <li> HTML tag
-        for element in sorting_slots:
-            html_output += f"  <li>{element.text}</li>\n"
-
-        # Close the HTML tag
-        html_output += "</ul>"
 
         # Then filter those sorts for one with the right sport and the right time
         slots = self._filter_webelements(
