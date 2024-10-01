@@ -24,7 +24,7 @@ def mock_usc():
         },
     ]
     return usc_mock
- 
+
 
 @pytest.fixture
 def mock_application():
