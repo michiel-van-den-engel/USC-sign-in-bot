@@ -22,5 +22,4 @@ jobs:
     - name: Analysing the code with pytest
       env:
         BOTTOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        pytest
+      run: pytest
