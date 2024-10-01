@@ -97,8 +97,8 @@ class UscInterface(webdriver.Chrome):
     def _log_page_to_output_file(self):
         """Logs the page to html output in case of errors such that it can be inspected where the
         error came from"""
-        with open('error_output_page.html', 'w', encoding='utf-8') as file:
-            file.write(self.page_source)
+        with open('error_output_page.html', 'w', encoding='utf-8') as file_log:
+            file_log.write(self.page_source)
 
     def _set_browser_timezone(self, timezone):
         self.execute_cdp_cmd("Emulation.setTimezoneOverride", {"timezoneId": timezone})
@@ -162,9 +162,9 @@ class UscInterface(webdriver.Chrome):
             return WebDriverWait(self, 5).until(
                 EC.presence_of_element_located((select_with, selector_path))
             )
-        except TimeoutException as timeoutError:
+        except TimeoutException as timeout_error:
             self._log_page_to_output_file()
-            raise timeoutError
+            raise timeout_error
 
     def _select_all_elements(
         self,

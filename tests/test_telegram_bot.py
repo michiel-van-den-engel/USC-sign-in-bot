@@ -47,7 +47,7 @@ async def test_start(bot):
 
 
 @pytest.mark.asyncio
-@patch("usc_sign_in_bot.telegram_bot.UscDataBase") 
+@patch("usc_sign_in_bot.telegram_bot.UscDataBase")
 async def test_ask_sports_valid_method(mock_database, bot):
     """Test the ask_sports method with a valid login method."""
     update = AsyncMock(spec=Update)
