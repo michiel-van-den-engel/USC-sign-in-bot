@@ -24,5 +24,5 @@ jobs:
         pip install pytest pylint==3.3.1
     - name: Analysing the code with pylint
       run: |
-        pylint usc_sign_in_bot/
-        pylint tests/
+        pylint usc_sign_in_bot/ || exit 1
+        pylint tests/ || exit 1

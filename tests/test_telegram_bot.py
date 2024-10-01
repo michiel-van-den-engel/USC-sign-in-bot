@@ -47,17 +47,18 @@ async def test_start(bot):
 
 
 @pytest.mark.asyncio
-async def test_ask_sports_valid_method(bot):
+@patch("usc_sign_in_bot.telegram_bot.UscDataBase")
+async def test_ask_sports_valid_method(mock_database, bot):
     """Test the ask_sports method with a valid login method."""
     update = AsyncMock(spec=Update)
     update.message.text.strip.return_value = "uva"
     update.effective_user.id = 1234
     update.message.reply_html = AsyncMock()
 
+    database_object = mock_database.return_value
     result = await bot.ask_sports(update, AsyncMock())
 
-    print(bot.database.insert_user.call_args_list)
-    bot.database.insert_user.assert_called_once_with(1234, ANY, "uva")
+    database_object.insert_user.assert_called_once_with(1234, ANY, "uva")
     update.message.reply_html.assert_called_once_with(
         "Allright, we registered uva now we need to know the sport you want to participate in. "
         "Note that spelling (including captial letters) is very important here as this is where "
@@ -78,16 +79,19 @@ async def test_ask_sports_invalid_method(bot):
 
 
 @pytest.mark.asyncio
-async def test_ask_username(bot):
+@patch("usc_sign_in_bot.telegram_bot.UscDataBase")
+async def test_ask_username(mock_database, bot):
     """Test the ask_username method."""
     update = AsyncMock(spec=Update)
     update.message.text = "Basketball"
     update.effective_user.id = 1234
     update.message.reply_html = AsyncMock()
 
+    mock_db = mock_database.return_value
+
     result = await bot.ask_username(update, AsyncMock())
 
-    bot.database.edit_data_point.assert_called_once_with(
+    mock_db.edit_data_point.assert_called_once_with(
         1234, "sport", "Basketball", table="users", key_column="telegram_id"
     )
     update.message.reply_html.assert_called_once_with(
@@ -100,7 +104,8 @@ async def test_ask_username(bot):
 
 
 @pytest.mark.asyncio
-async def test_ask_password(bot):
+@patch("usc_sign_in_bot.telegram_bot.UscDataBase")
+async def test_ask_password(mock_database, bot):
     """Test the telegram step asking for a password"""
     # Mock the update object to simulate a user message
     update = MagicMock()
@@ -110,11 +115,14 @@ async def test_ask_password(bot):
     # Mock the message reply_html method
     update.message.reply_html = AsyncMock()
 
+    # Mock the database from builder
+    mock_db = mock_database.return_value
+
     # Now call the function under test
     result = await bot.ask_password(update, MagicMock())
 
     # 1. Verify that database.edit_data_point is called correctly
-    bot.database.edit_data_point.assert_called_once_with(
+    mock_db.edit_data_point.assert_called_once_with(
         123456,  # Telegram user ID
         "username",  # The field to update
         "test_username",  # The username that was entered
@@ -130,8 +138,9 @@ async def test_ask_password(bot):
 
 
 @pytest.mark.asyncio
-@patch("usc_sign_in_bot.telegram_bot.Encryptor")  # Mock the Encryptor class
-async def test_finish_sign_up(mock_encryptor, bot):
+@patch("usc_sign_in_bot.telegram_bot.Encryptor")
+@patch("usc_sign_in_bot.telegram_bot.UscDataBase")
+async def test_finish_sign_up(mock_db_builder, mock_encryptor, bot):
     """Test the function finishing the sign up process"""
     # Mock the update object to simulate a user message
     update = MagicMock()
@@ -144,6 +153,9 @@ async def test_finish_sign_up(mock_encryptor, bot):
     # Create a mock for the Encryptor instance
     mock_encrypt_instance = mock_encryptor.return_value
     mock_encrypt_instance.encrypt_data.return_value = "encrypted_password"
+
+    # Also create a mock for the database class
+    mock_db = mock_db_builder.return_value
 
     # Mock the message reply_html method
     update.message.reply_html = AsyncMock()
@@ -159,7 +171,7 @@ async def test_finish_sign_up(mock_encryptor, bot):
     mock_encrypt_instance.encrypt_data.assert_called_once_with("test_password")
 
     # 3. Verify that database.edit_data_point is called with the correct arguments
-    bot.database.edit_data_point.assert_called_once_with(
+    mock_db.edit_data_point.assert_called_once_with(
         123456,  # Telegram user ID
         "password",  # The field to update
         "encrypted_password",  # The encrypted password
@@ -319,7 +331,8 @@ async def test_error_handler_generic_message_error(mock_error, bot):
 
 @pytest.mark.asyncio
 @patch("usc_sign_in_bot.telegram_bot.UscInterface")
-async def test_message_handler_yes_choice(mock_usc_interface, bot):
+@patch("usc_sign_in_bot.telegram_bot.UscDataBase")
+async def test_message_handler_yes_choice(mock_db_builder, mock_usc_interface, bot):
     """Check if hte app works corerctly when a user wants to sign up"""
     # Mock update and callback query
     update = MagicMock()
@@ -328,26 +341,29 @@ async def test_message_handler_yes_choice(mock_usc_interface, bot):
     update.callback_query.message.text = "Initial message"
     update.callback_query.edit_message_text = AsyncMock()
 
+    # Mock the database
+    mock_db = mock_db_builder.return_value
+
     # Mock database behavior
-    bot.database.get_lesson_data_by_key = MagicMock(
+    mock_db.get_lesson_data_by_key = MagicMock(
         return_value={"sport": "Basketball", "datetime": "2024-09-30 10:00:00"}
     )
-    bot.database.get_user = MagicMock(
+    mock_db.get_user = MagicMock(
         return_value={
             "username": "user123",
             "password": "password",
             "login_method": "uva",
         }
     )
-    bot.database.edit_data_point = MagicMock()
+    mock_db.edit_data_point = MagicMock()
 
     # Call the message_handler function
     await bot.message_handler(update, MagicMock())
 
     # Assertions:
     # 1. Ensure the database methods were called with correct arguments
-    bot.database.get_lesson_data_by_key.assert_called_once_with("some_key")
-    bot.database.edit_data_point.assert_called_once_with("some_key", "response", "Y")
+    mock_db.get_lesson_data_by_key.assert_called_once_with("some_key")
+    mock_db.edit_data_point.assert_called_once_with("some_key", "response", "Y")
 
     # 2. Ensure the UscInterface was initialized and used correctly
     mock_usc_interface.assert_called_once_with("user123", "password", uva_login=True)
@@ -364,7 +380,8 @@ async def test_message_handler_yes_choice(mock_usc_interface, bot):
 
 @pytest.mark.asyncio
 @patch("usc_sign_in_bot.telegram_bot.UscInterface")
-async def test_message_handler_no_choice(mock_interface, bot):
+@patch("usc_sign_in_bot.telegram_bot.UscDataBase")
+async def test_message_handler_no_choice(mock_db_builder, mock_interface, bot):
     """Check if the app works correctly when a user chooses no"""
     # Mock update and callback query for 'No' choice
     update = MagicMock()
@@ -376,18 +393,19 @@ async def test_message_handler_no_choice(mock_interface, bot):
     mock_interface.return_value = MagicMock()
 
     # Mock database behavior
-    bot.database.get_lesson_data_by_key = MagicMock(
+    mock_db = mock_db_builder.return_value
+    mock_db.get_lesson_data_by_key = MagicMock(
         return_value={"sport": "Basketball", "datetime": "2024-09-30 10:00:00"}
     )
-    bot.database.edit_data_point = MagicMock()
+    mock_db.edit_data_point = MagicMock()
 
     # Call the message_handler function
     await bot.message_handler(update, MagicMock())
 
     # Assertions:
     # 1. Ensure the database methods were called with correct arguments
-    bot.database.get_lesson_data_by_key.assert_called_once_with("some_key")
-    bot.database.edit_data_point.assert_called_once_with("some_key", "response", "N")
+    mock_db.get_lesson_data_by_key.assert_called_once_with("some_key")
+    mock_db.edit_data_point.assert_called_once_with("some_key", "response", "N")
 
     # 2. Ensure UscInterface was not called (since choice is 'No')
     # Check that UscInterface is not instantiated or used

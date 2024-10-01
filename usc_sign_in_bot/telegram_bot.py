@@ -33,7 +33,6 @@ class TelegramBot:
     def __init__(self) -> None:
         """Start the bot"""
         self.app = Application.builder().token(os.environ["BOTTOKEN"]).build()
-        self.database = UscDataBase()
 
         conv_handler = ConversationHandler(
             entry_points=[CommandHandler("start", self.start)],
@@ -79,7 +78,8 @@ class TelegramBot:
         logger.info("A user with telegram_id %s started sign up", user.id)
         return LOGIN_METHOD
 
-    async def ask_sports(self, update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
+    @staticmethod
+    async def ask_sports(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
         """Get the sport of the user, now ask for the Username"""
         login_method = update.message.text.strip(" ").lower()
         telegram_id = update.effective_user.id
@@ -87,7 +87,7 @@ class TelegramBot:
         if login_method not in LOGIN_METHODS:
             raise ValueError("Login method is not known")
 
-        user_id = self.database.insert_user(telegram_id, dt.now(), login_method)
+        user_id = UscDataBase().insert_user(telegram_id, dt.now(), login_method)
 
         await update.message.reply_html(
             f"Allright, we registered {login_method} now we need to know the sport you want to "
@@ -98,12 +98,13 @@ class TelegramBot:
 
         return SPORT
 
-    async def ask_username(self, update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
+    @staticmethod
+    async def ask_username(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
         """Get the sport of the user, now ask for the Username"""
         sport = update.message.text
         telegram_id = update.effective_user.id
 
-        self.database.edit_data_point(
+        UscDataBase().edit_data_point(
             telegram_id, "sport", sport, table="users", key_column="telegram_id"
         )
 
@@ -118,12 +119,13 @@ class TelegramBot:
         logger.info("Asked for the username to user with telegram_id %s", telegram_id)
         return USERNAME
 
-    async def ask_password(self, update: Update, _: CallbackContext) -> None:
+    @staticmethod
+    async def ask_password(update: Update, _: CallbackContext) -> None:
         """Register the username from the response, next ask for the passord"""
         username = update.message.text
         telegram_id = update.effective_user.id
 
-        self.database.edit_data_point(
+        UscDataBase().edit_data_point(
             telegram_id, "username", username, table="users", key_column="telegram_id"
         )
 
@@ -131,7 +133,8 @@ class TelegramBot:
         logger.info("Asked for the password to user with telegram_id %s", telegram_id)
         return PASSWORD
 
-    async def finish_sign_up(self, update: Update, _: CallbackContext) -> None:
+    @staticmethod
+    async def finish_sign_up(update: Update, _: CallbackContext) -> None:
         """Register the password and fix the next workflow"""
         password = update.message.text
         telegram_id = update.effective_user.id
@@ -143,7 +146,7 @@ class TelegramBot:
         # a reminder to not reuse your passwords.
         encryptor = Encryptor(os.environ.get("ENCRYPT_KEY"))
         password_encrypt = encryptor.encrypt_data(password)
-        self.database.edit_data_point(
+        UscDataBase().edit_data_point(
             telegram_id,
             "password",
             password_encrypt,
@@ -217,14 +220,15 @@ class TelegramBot:
 
     async def message_handler(self, update: Update, _: CallbackContext) -> None:
         """Check for updates"""
+        database = UscDataBase()
         telegram_id = update.effective_user.id
         key, s_choice = update.callback_query.data.split(",")
         choice = s_choice == "Y"
-        data = self.database.get_lesson_data_by_key(key)
-        self.database.edit_data_point(key, "response", s_choice)
+        data = database.get_lesson_data_by_key(key)
+        database.edit_data_point(key, "response", s_choice)
 
         if choice:
-            user = self.database.get_user(telegram_id, query_key="telegram_id")
+            user = database.get_user(telegram_id, query_key="telegram_id")
             usc = UscInterface(
                 user["username"],
                 user["password"],

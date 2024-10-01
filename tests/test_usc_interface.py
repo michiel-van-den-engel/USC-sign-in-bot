@@ -115,7 +115,7 @@ def test_select_all_elements(usc_interface):
         elements = usc_interface._select_all_elements("div.some-element")
         assert elements == [mock_element1, mock_element2]
 
-        mock_wait.assert_called_once_with(usc_interface, 2)
+        mock_wait.assert_called_once_with(usc_interface, 10)
         mock_wait.return_value.until.assert_called_once()
 
 
