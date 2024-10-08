@@ -23,7 +23,7 @@ logging.basicConfig(
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 # Define states for the conversation
-LOGIN_METHOD, SPORT, USERNAME, PASSWORD, WRAP_UP, *_ = range(50)
+LOGIN_METHOD, USERNAME, PASSWORD, WRAP_UP, *_ = range(50)
 LOGIN_METHODS = ["uva"]
 
 logger = logging.getLogger(__name__)
@@ -40,9 +40,6 @@ class TelegramBot:
             entry_points=[CommandHandler("start", self.start)],
             states={
                 LOGIN_METHOD: [
-                    MessageHandler(filters.TEXT & ~filters.COMMAND, self.ask_sports)
-                ],
-                SPORT: [
                     MessageHandler(filters.TEXT & ~filters.COMMAND, self.ask_username)
                 ],
                 USERNAME: [
@@ -83,33 +80,17 @@ class TelegramBot:
         return LOGIN_METHOD
 
     @staticmethod
-    async def ask_sports(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
-        """Get the sport of the user, now ask for the Username"""
+    async def ask_username(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
+        """Get the login method of the user, now ask for the Username"""
         login_method = update.message.text.strip(" ").lower()
         telegram_id = update.effective_user.id
 
         if login_method not in LOGIN_METHODS:
             raise ValueError("Login method is not known")
 
-        user_id = UscDataBase().insert_user(telegram_id, dt.now(), login_method)
-
-        await update.message.reply_html(
-            f"Allright, we registered {login_method} now we need to know the sport you want to "
-            + "participate in. Note that spelling (including captial letters) is very important "
-            + "here as this is where we will search for."
-        )
-        logger.info("Asked for the sport to user %s", user_id)
-
-        return SPORT
-
-    @staticmethod
-    async def ask_username(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
-        """Get the sport of the user, now ask for the Username"""
-        sport = update.message.text
-        telegram_id = update.effective_user.id
-
+        UscDataBase().insert_user(telegram_id, dt.now(), login_method)
         UscDataBase().edit_data_point(
-            telegram_id, "sport", sport, table="users", key_column="telegram_id"
+            telegram_id, "sport", "Schermen", table="users", key_column="telegram_id"
         )
 
         await update.message.reply_html(
@@ -180,9 +161,6 @@ class TelegramBot:
     @staticmethod
     async def help_command(update: Update, _: CallbackContext) -> None:
         """Send a message explaining what to do"""
-        print(update)
-        print(update.message)
-        print(update.message.reply_text)
         await update.message.reply_text(
             "We'll send you updates on all the trainings. You can sign up via the buttons. To "
             + "stop, use the /cancel command"
