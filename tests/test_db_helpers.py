@@ -1,5 +1,6 @@
 """Test module to test the db_helpers module in the src file"""
-#pylint: disable=redefined-outer-name
+
+# pylint: disable=redefined-outer-name
 from datetime import datetime
 from unittest.mock import ANY, MagicMock, patch
 

@@ -1,5 +1,6 @@
 """Test module to test the Encryptor module in the src file"""
-#pylint: disable=redefined-outer-name
+
+# pylint: disable=redefined-outer-name
 import hashlib
 from base64 import b64decode
 
@@ -26,7 +27,7 @@ def test_get_key(encryptor):
     """Test if the key is correctly padded and encoded."""
     key = "test_encrypt_key"
     expected_key = key.ljust(32)[:32].encode("utf-8")
-    assert encryptor._get_key() == expected_key # pylint: disable=protected-access
+    assert encryptor._get_key() == expected_key  # pylint: disable=protected-access
 
 
 def test_encrypt_data(encryptor):

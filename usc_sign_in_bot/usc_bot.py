@@ -1,4 +1,5 @@
 """Module for calling the job checking for new lessons"""
+
 import asyncio
 import logging
 import os
@@ -57,7 +58,7 @@ async def main(
                     application.bot.send_message(
                         user["telegram_id"],
                         f"There is a fencing lesson {les['time'].strftime('%A')} at "
-                        + les['time'].strftime('%H:%M')
+                        + les["time"].strftime("%H:%M")
                         + f". The trainer is {les['trainer']}. Would you like to go?",
                         reply_markup=markup,
                     )
@@ -78,13 +79,10 @@ def start_bot_job():
     """Start the bot and interface neeeded for the fnction, then calll the main"""
     # Create the application and pass your bot's token
     application = Application.builder().token(os.environ["BOTTOKEN"]).build()
-    usc = UscInterface(
+    with UscInterface(
         os.environ["UVA_USERNAME"], os.environ["UVA_PASSWORD"], uva_login=True
-    )
+    ) as usc:
 
-    usc_db = UscDataBase()
+        usc_db = UscDataBase()
 
-    try:
         asyncio.run(main(application, usc, usc_db))
-    finally:
-        usc.quit()

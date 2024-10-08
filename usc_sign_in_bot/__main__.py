@@ -1,4 +1,5 @@
 """Main of the module, mainly used to point to the right script"""
+
 import sys
 
 from usc_sign_in_bot.telegram_bot import TelegramBot

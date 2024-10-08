@@ -1,5 +1,6 @@
 """Test module to test the Encryptor module in the src file"""
-#pylint: disable=redefined-outer-name
+
+# pylint: disable=redefined-outer-name
 import os
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
@@ -41,7 +42,7 @@ async def test_start(bot):
 
     update.message.reply_html.assert_called_once_with(
         "Heyhoy user_1234, Welcome in our service for USC sports. To start, I need some info from "
-        +"you. What login method would you like to use? You can try (uva)"
+        + "you. What login method would you like to use? You can try (uva)"
     )
     assert result == LOGIN_METHOD
 
@@ -181,8 +182,8 @@ async def test_finish_sign_up(mock_db_builder, mock_encryptor, bot):
 
     # 4. Verify that reply_html is called with the correct message
     update.message.reply_html.assert_called_once_with(
-        "You have finished the sign up process. Many love from us and we hope to see you in the "+
-        "gym! &#10084;"
+        "You have finished the sign up process. Many love from us and we hope to see you in the "
+        + "gym! &#10084;"
     )
 
     # 5. Verify that the function returns ConversationHandler.END
@@ -223,8 +224,8 @@ async def test_help_command(bot):
     # Assertions:
     # 1. Verify that reply_text is called with the expected message
     update.message.reply_text.assert_called_once_with(
-        "We'll send you updates on all the trainings. You can sign up via the buttons. To stop, "+
-        "use the /cancel command"
+        "We'll send you updates on all the trainings. You can sign up via the buttons. To stop, "
+        + "use the /cancel command"
     )
 
     # 2. Verify that the function doesn't return anything
@@ -252,8 +253,8 @@ async def test_error_handler_login_method_error(mock_info, mock_error, bot):
 
     # Assert that the correct message is sent to the user
     update.message.reply_text.assert_called_once_with(
-        "Sorry, that login method has not been implemented yet, please choose one from the given "+
-        "list (uva)"
+        "Sorry, that login method has not been implemented yet, please choose one from the given "
+        + "list (uva)"
     )
 
     # Assert that logging.info was not called for other branches
@@ -267,8 +268,10 @@ async def test_error_handler_already_registered(mock_info, bot):
     # Mock update and context for registration error
     update = MagicMock()
     context = MagicMock()
-    context.error.__str__.return_value = ('Message: no such element: Unable to locate element: ' +
-        '{"method":"css selector","selector":"button[data-test-id="bookable-slot-book-b')
+    context.error.__str__.return_value = (
+        "Message: no such element: Unable to locate element: "
+        + '{"method":"css selector","selector":"button[data-test-id="bookable-slot-book-b'
+    )
     update.callback_query.edit_message_text = AsyncMock()
 
     # Call the error_handler function
@@ -346,7 +349,11 @@ async def test_message_handler_yes_choice(mock_db_builder, mock_usc_interface, b
 
     # Mock database behavior
     mock_db.get_lesson_data_by_key = MagicMock(
-        return_value={"sport": "Basketball", "datetime": "2024-09-30 10:00:00"}
+        return_value={
+            "sport": "Basketball",
+            "datetime": "2024-09-30 10:00:00",
+            "response": None,
+        }
     )
     mock_db.get_user = MagicMock(
         return_value={
@@ -356,6 +363,11 @@ async def test_message_handler_yes_choice(mock_db_builder, mock_usc_interface, b
         }
     )
     mock_db.edit_data_point = MagicMock()
+
+    # Mock the context manager behavior of UscInterface
+    mock_usc = mock_usc_interface.return_value
+    mock_usc.__enter__.return_value = mock_usc
+    mock_usc.__exit__ = MagicMock()
 
     # Call the message_handler function
     await bot.message_handler(update, MagicMock())
@@ -367,10 +379,9 @@ async def test_message_handler_yes_choice(mock_db_builder, mock_usc_interface, b
 
     # 2. Ensure the UscInterface was initialized and used correctly
     mock_usc_interface.assert_called_once_with("user123", "password", uva_login=True)
-    mock_usc_interface.return_value.sign_up_for_lesson.assert_called_once_with(
+    mock_usc.sign_up_for_lesson.assert_called_once_with(
         "Basketball", "2024-09-30 10:00:00"
     )
-    mock_usc_interface.return_value.close.assert_called_once()
 
     # 3. Ensure the callback message was edited
     update.callback_query.edit_message_text.assert_called_once_with(
@@ -395,7 +406,11 @@ async def test_message_handler_no_choice(mock_db_builder, mock_interface, bot):
     # Mock database behavior
     mock_db = mock_db_builder.return_value
     mock_db.get_lesson_data_by_key = MagicMock(
-        return_value={"sport": "Basketball", "datetime": "2024-09-30 10:00:00"}
+        return_value={
+            "sport": "Basketball",
+            "datetime": "2024-09-30 10:00:00",
+            "response": None,
+        }
     )
     mock_db.edit_data_point = MagicMock()
 
@@ -415,3 +430,28 @@ async def test_message_handler_no_choice(mock_db_builder, mock_interface, bot):
     update.callback_query.edit_message_text.assert_called_once_with(
         "Initial message\n\nWe have recorded your choice as being No. Good luck!"
     )
+
+
+@pytest.mark.asyncio
+@patch("usc_sign_in_bot.telegram_bot.UscInterface")
+@patch("usc_sign_in_bot.telegram_bot.UscDataBase")
+async def test_message_handler_known_choice(mock_db_builder, mock_interface, bot):
+    """Tests if it handles a message where the response is allready known"""
+    # Mock update and callback query for 'No' choice
+    update = MagicMock()
+    update.effective_user.id = 123456  # Simulate Telegram user ID
+    update.callback_query.data = "some_key,Y"
+
+    # Mock database behavior
+    mock_db = mock_db_builder.return_value
+    mock_db.get_lesson_data_by_key = MagicMock(
+        return_value={
+            "sport": "Basketball",
+            "datetime": "2024-09-30 10:00:00",
+            "response": "Y",
+        }
+    )
+    await bot.message_handler(update, MagicMock())
+
+    mock_interface.assert_not_called()
+    mock_db.edit_data_point.assert_not_called()

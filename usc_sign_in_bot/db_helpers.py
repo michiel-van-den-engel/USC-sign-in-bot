@@ -38,7 +38,7 @@ class UscDataBase:
             user=os.environ.get("POSTGRES_USER"),
             password=os.environ.get("POSTGRES_PASSWORD"),
             host=os.environ.get("POSTGRES_HOST", "localhost"),
-            port=int(os.environ.get("POSTGRES_PORT", 5432))
+            port=int(os.environ.get("POSTGRES_PORT", 5432)),
         )
         self.cursor = self.conn.cursor()
         self.encrypt = Encryptor(os.environ.get("ENCRYPT_KEY"))
@@ -287,7 +287,9 @@ class UscDataBase:
         return dict_result
 
     @rollback_on_error
-    def get_user(self, unit_id: str, query_key: streams = "user_id") -> dict[str, object]:
+    def get_user(
+        self, unit_id: str, query_key: streams = "user_id"
+    ) -> dict[str, object]:
         """
         Retrieve a user's information from the database based on a specified query key.
 
@@ -350,7 +352,7 @@ class UscDataBase:
         col: str,
         value: str,
         table: str = "lessons",
-        key_column="lesson_id"
+        key_column="lesson_id",
     ) -> None:
         """
         Update a specific column of a lesson record in the database.

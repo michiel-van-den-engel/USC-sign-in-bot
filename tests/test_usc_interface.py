@@ -9,6 +9,7 @@ from unittest.mock import ANY, MagicMock, patch
 import pytest
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.by import By
+from selenium.webdriver.remote.webelement import WebElement
 
 from usc_sign_in_bot import UscInterface
 
@@ -32,9 +33,7 @@ def mock_browser():
 @pytest.fixture
 def usc_interface():
     """Fixture for creating a UscInterface instance."""
-    with patch.object(
-        UscInterface, "_login", return_value=None
-    ) as _, patch.object(
+    with patch.object(UscInterface, "_login", return_value=None) as _, patch.object(
         UscInterface, "_set_browser_timezone", return_value=None
     ):
         return UscInterface(username="testuser", password="testpass", uva_login=True)
@@ -183,49 +182,137 @@ def test_filter_webelements(usc_interface):
     )
 
 
-@patch("time.sleep", return_value=None)
-def test_extract_info_from_timeslot(mock_sleep, usc_interface):
-    """Test extraction of info from a timeslot."""
-    slot = MagicMock()
-    slot.find_element.side_effect = [
-        MagicMock(text="12:30"),
-        MagicMock(text="John Doe"),
-    ]
+@pytest.mark.parametrize(
+    "html_content, expected_time, expected_trainer, day_ahead",
+    [
+        (
+            """
+            <div>
+                <p data-test-id="bookable-slot-start-time">
+                    <strong>10:30</strong>
+                </p>
+                <span data-test-id="bookable-slot-supervisor-first-name">John</span>
+            </div>
+            """,
+            "10:30",
+            "John",
+            1,
+        ),
+        (
+            """
+            <div>
+                <p data-test-id="bookable-slot-start-time">
+                    <strong>15:45</strong>
+                </p>
+                <span data-test-id="bookable-slot-supervisor-first-name">Jane</span>
+            </div>
+            """,
+            "15:45",
+            "Jane",
+            3,
+        ),
+    ],
+)
+def test_extract_info_from_timeslot_valid_data(
+    html_content, expected_time, expected_trainer, day_ahead, usc_interface
+):
+    """Test extracting time and trainer successfully."""
+    # Mock the WebElement
+    slot = MagicMock(spec=WebElement)
+    slot.get_attribute.return_value = html_content
 
-    result = usc_interface._extract_info_from_timeslot(slot, day_ahead=1)
+    # Call the method
+    result = usc_interface._extract_info_from_timeslot(slot, day_ahead)
 
-    assert result["time"] == dt.combine(
-        dt.now().date(), dt.strptime("12:30", "%H:%M").time()
+    # Expected datetime object
+    expected_datetime = dt.combine(
+        dt.now() + timedelta(days=day_ahead - 1),
+        dt.strptime(expected_time, "%H:%M").time(),
     )
-    assert result["trainer"] == "John Doe"
 
-    slot.find_element.assert_any_call(
-        By.CSS_SELECTOR, 'p[data-test-id="bookable-slot-start-time"] > strong'
+    # Assert correct extraction
+    assert result["time"] == expected_datetime
+    assert result["trainer"] == expected_trainer
+
+
+def test_extract_info_from_timeslot_time_extraction_failure(caplog, usc_interface):
+    """Test that a ValueError is raised if time extraction fails."""
+    html_content = """
+        <div>
+            <p data-test-id="bookable-slot-start-time">
+            <strong></strong>
+            <span data-test-id="bookable-slot-supervisor-first-name">John</span>
+            
+        </div>
+    """
+
+    # Mock the WebElement
+    slot = MagicMock(spec=WebElement)
+    slot.get_attribute.return_value = html_content
+
+    with pytest.raises(ValueError) as excinfo:
+        usc_interface._extract_info_from_timeslot(slot, 1)
+
+    assert "Time Extraction failed" in str(excinfo)
+    assert "Time extraction Failed" in caplog.text
+
+
+def test_extract_info_from_timeslot_trainer_extraction_failure(caplog, usc_interface):
+    """Test that a warning is logged if trainer extraction fails."""
+    html_content = """
+        <div>
+            <p data-test-id="bookable-slot-start-time">
+                <strong>10:30</strong>
+            </p>
+            <span data-test-id="bookable-slot-supervisor-first-name"></span>
+        </div>
+    """
+
+    # Mock the WebElement
+    slot = MagicMock(spec=WebElement)
+    slot.get_attribute.return_value = html_content
+
+    result = usc_interface._extract_info_from_timeslot(slot, 1)
+
+    # Trainer is empty, so it should log an error
+    assert result["trainer"] == ""
+    assert "Trainer extraction Failed" in caplog.text
+
+
+@pytest.mark.parametrize(
+    "extracted_time, day_ahead, expected_time",
+    [
+        ("10:30", 1, dt.now() + timedelta(days=0)),
+        ("15:45", 3, dt.now() + timedelta(days=2)),
+    ],
+)
+def test_extract_info_from_timeslot_datetime_combination(
+    extracted_time, day_ahead, expected_time, usc_interface
+):
+    """Test that the datetime combination with days ahead is correct."""
+    html_content = f"""
+        <div>
+            <p data-test-id="bookable-slot-start-time">
+                <strong>{extracted_time}</strong>
+            </p>
+            <span data-test-id="bookable-slot-supervisor-first-name">John</span>
+        </div>
+    """
+
+    # Mock the WebElement
+    slot = MagicMock(spec=WebElement)
+    slot.get_attribute.return_value = html_content
+
+    result = usc_interface._extract_info_from_timeslot(slot, day_ahead)
+
+    # Expected datetime object
+    expected_datetime = dt.combine(
+        expected_time.date(),
+        dt.strptime(extracted_time, "%H:%M").time(),
     )
-    slot.find_element.assert_any_call(
-        By.CSS_SELECTOR, 'span[data-test-id="bookable-slot-supervisor-first-name"]'
-    )
-    mock_sleep.assert_called_once()
 
-
-def test_extract_info_from_timeslot_error_handling(usc_interface):
-    """Test error handling in the extraction of info from a timeslot when time extraction fails."""
-    slot = MagicMock()
-    slot.find_element.side_effect = [
-        MagicMock(text=""),  # Empty text to simulate failed time extraction
-        MagicMock(text="John Doe"),
-    ]
-
-    with pytest.raises(ValueError), patch(
-        "usc_sign_in_bot.usc_interface.logger"
-    ) as mock_logger:  # Mock logger for error handling
-        result = usc_interface._extract_info_from_timeslot(slot, day_ahead=1)
-
-        assert mock_logger.error.called
-        mock_logger.error.assert_called_with(f"Time extraction Failed for {slot}")
-        assert (
-            result["time"] is not None
-        )  # Even if time extraction fails, a datetime should still be returned
+    # Assert that the datetime is correct
+    assert result["time"] == expected_datetime
 
 
 def test_loop_over_the_days(usc_interface):
@@ -234,9 +321,7 @@ def test_loop_over_the_days(usc_interface):
         usc_interface,
         "_select_all_elements",
         return_value=[MagicMock() for _ in range(3)],
-    ) as _, patch.object(
-        usc_interface, "_click_and_find_element"
-    ), patch.object(
+    ) as _, patch.object(usc_interface, "_click_and_find_element"), patch.object(
         usc_interface,
         "_filter_webelements",
         return_value=[MagicMock() for _ in range(2)],

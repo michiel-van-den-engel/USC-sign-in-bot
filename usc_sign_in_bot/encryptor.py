@@ -1,4 +1,5 @@
 """Hold the encrytor class in this module"""
+
 import hashlib
 import os
 from base64 import b64decode, b64encode
@@ -37,7 +38,9 @@ class Encryptor:
 
         # Use the cipher with AES algorithm in CBC mode and add a random IV
         rand_iv = os.urandom(16)
-        cipher = Cipher(algorithms.AES(key), modes.CBC(rand_iv), backend=default_backend())
+        cipher = Cipher(
+            algorithms.AES(key), modes.CBC(rand_iv), backend=default_backend()
+        )
         encryptor = cipher.encryptor()
 
         # pad the plaintext such that it becomes a multiple of the wanted block size
@@ -65,7 +68,9 @@ class Encryptor:
         rand_iv, actual_ciphertext = ciphertext[:16], ciphertext[16:]
 
         # Now create the right decryptor objects to decrypt the text
-        cipher = Cipher(algorithms.AES(key), modes.CBC(rand_iv), backend=default_backend())
+        cipher = Cipher(
+            algorithms.AES(key), modes.CBC(rand_iv), backend=default_backend()
+        )
         decryptor = cipher.decryptor()
 
         # Decrypt the actual decrypted text
