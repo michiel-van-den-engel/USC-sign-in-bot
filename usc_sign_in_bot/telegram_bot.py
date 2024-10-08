@@ -23,7 +23,7 @@ logging.basicConfig(
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 # Define states for the conversation
-LOGIN_METHOD, SPORT, USERNAME, PASSWORD, WRAP_UP, *_ = range(50)
+LOGIN_METHOD, USERNAME, PASSWORD, WRAP_UP, *_ = range(50)
 LOGIN_METHODS = ["uva"]
 
 logger = logging.getLogger(__name__)
@@ -161,9 +161,6 @@ class TelegramBot:
     @staticmethod
     async def help_command(update: Update, _: CallbackContext) -> None:
         """Send a message explaining what to do"""
-        print(update)
-        print(update.message)
-        print(update.message.reply_text)
         await update.message.reply_text(
             "We'll send you updates on all the trainings. You can sign up via the buttons. To "
             + "stop, use the /cancel command"

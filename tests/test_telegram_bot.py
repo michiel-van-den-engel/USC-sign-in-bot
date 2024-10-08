@@ -10,7 +10,7 @@ from telegram.ext import ConversationHandler
 
 from usc_sign_in_bot.telegram_bot import TelegramBot
 
-LOGIN_METHOD, SPORT, USERNAME, PASSWORD, WRAP_UP = range(5)
+LOGIN_METHOD, USERNAME, PASSWORD, WRAP_UP = range(4)
 
 
 @pytest.fixture
@@ -48,35 +48,14 @@ async def test_start(bot):
 
 
 @pytest.mark.asyncio
-@patch("usc_sign_in_bot.telegram_bot.UscDataBase")
-async def test_ask_sports_valid_method(mock_database, bot):
-    """Test the ask_sports method with a valid login method."""
-    update = AsyncMock(spec=Update)
-    update.message.text.strip.return_value = "uva"
-    update.effective_user.id = 1234
-    update.message.reply_html = AsyncMock()
-
-    database_object = mock_database.return_value
-    result = await bot.ask_sports(update, AsyncMock())
-
-    database_object.insert_user.assert_called_once_with(1234, ANY, "uva")
-    update.message.reply_html.assert_called_once_with(
-        "Allright, we registered uva now we need to know the sport you want to participate in. "
-        "Note that spelling (including captial letters) is very important here as this is where "
-        "we will search for."
-    )
-    assert result == SPORT
-
-
-@pytest.mark.asyncio
-async def test_ask_sports_invalid_method(bot):
+async def test_ask_username_invalid_method(bot):
     """Test the ask_sports method with an invalid login method."""
     update = AsyncMock(spec=Update)
     update.message.text.strip.return_value = "invalid"
     update.effective_user.id = 1234
 
     with pytest.raises(ValueError, match="Login method is not known"):
-        await bot.ask_sports(update, AsyncMock())
+        await bot.ask_username(update, AsyncMock())
 
 
 @pytest.mark.asyncio
@@ -84,7 +63,7 @@ async def test_ask_sports_invalid_method(bot):
 async def test_ask_username(mock_database, bot):
     """Test the ask_username method."""
     update = AsyncMock(spec=Update)
-    update.message.text = "Basketball"
+    update.message.text.strip.return_value = "uva"
     update.effective_user.id = 1234
     update.message.reply_html = AsyncMock()
 
@@ -92,8 +71,9 @@ async def test_ask_username(mock_database, bot):
 
     result = await bot.ask_username(update, AsyncMock())
 
+    mock_db.insert_user.assert_called_once_with(1234, ANY, "uva")
     mock_db.edit_data_point.assert_called_once_with(
-        1234, "sport", "Basketball", table="users", key_column="telegram_id"
+        1234, "sport", "Schermen", table="users", key_column="telegram_id"
     )
     update.message.reply_html.assert_called_once_with(
         "Because the way this scraper work, we need to be able to log in on your behalf. If you "
@@ -102,6 +82,25 @@ async def test_ask_username(mock_database, bot):
         "that you use to log in. If you login with UVA, this will be your uva email adress."
     )
     assert result == USERNAME
+
+# @pytest.mark.asyncio
+# @patch("usc_sign_in_bot.telegram_bot.UscDataBase")
+# async def test_ask_sports_valid_method(mock_database, bot):
+#     """Test the ask_sports method with a valid login method."""
+#     update = AsyncMock(spec=Update)
+#     update.message.text.strip.return_value = "uva"
+#     update.effective_user.id = 1234
+#     update.message.reply_html = AsyncMock()
+
+#     database_object = mock_database.return_value
+#     result = await bot.ask_username(update, AsyncMock())
+
+#     update.message.reply_html.assert_called_once_with(
+#         "Allright, we registered uva now we need to know the sport you want to participate in. "
+#         "Note that spelling (including captial letters) is very important here as this is where "
+#         "we will search for."
+#     )
+#     assert result == USERNAME
 
 
 @pytest.mark.asyncio
