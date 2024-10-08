@@ -1,4 +1,5 @@
 """Module to store all the telegram communication"""
+
 import logging
 import os
 import traceback
@@ -16,7 +17,7 @@ from usc_sign_in_bot.usc_interface import UscInterface
 
 # Enable logging
 logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.DEBUG
 )
 # set higher logging level for httpx to avoid all GET and POST requests being logged
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -26,6 +27,7 @@ LOGIN_METHOD, SPORT, USERNAME, PASSWORD, WRAP_UP, *_ = range(50)
 LOGIN_METHODS = ["uva"]
 
 logger = logging.getLogger(__name__)
+
 
 class TelegramBot:
     """Class for the telegrambot and how it interacts with the rest of the system"""
@@ -72,7 +74,9 @@ class TelegramBot:
         await update.message.reply_html(
             rf"Heyhoy {user.mention_html()}, Welcome in our service for USC sports. To start, "
             + "I need some info from you. What login method would you like to use? You can try "
-            + "("+', '.join(LOGIN_METHODS)+")"
+            + "("
+            + ", ".join(LOGIN_METHODS)
+            + ")"
         )
 
         logger.info("A user with telegram_id %s started sign up", user.id)
@@ -196,10 +200,9 @@ class TelegramBot:
             )
             return
 
-        if (
-            str(context.error)[:130]
-            == ('Message: no such element: Unable to locate element: {"method":"css selector",'+
-            '"selector":"button[data-test-id="bookable-slot-book-b')
+        if str(context.error)[:130] == (
+            'Message: no such element: Unable to locate element: {"method":"css selector",'
+            + '"selector":"button[data-test-id="bookable-slot-book-b'
         ):
             logger.info("User Allready registered for the course")
             await update.callback_query.edit_message_text(
@@ -209,8 +212,8 @@ class TelegramBot:
 
         if update.callback_query:
             await update.callback_query.edit_message_text(
-                "Sorry an error uccured. Please contact the Admins. Error="+
-                str(context.error)[:1000]
+                "Sorry an error uccured. Please contact the Admins. Error="
+                + str(context.error)[:1000]
             )
             return
 
@@ -225,17 +228,21 @@ class TelegramBot:
         key, s_choice = update.callback_query.data.split(",")
         choice = s_choice == "Y"
         data = database.get_lesson_data_by_key(key)
+
+        if data["response"] is not None:
+            logger.info("Skip as this response is allready known")
+            return
+
         database.edit_data_point(key, "response", s_choice)
 
         if choice:
             user = database.get_user(telegram_id, query_key="telegram_id")
-            usc = UscInterface(
+            with UscInterface(
                 user["username"],
                 user["password"],
                 uva_login=user["login_method"] == "uva",
-            )
-            usc.sign_up_for_lesson(data["sport"], data["datetime"])
-            usc.close()
+            ) as usc:
+                usc.sign_up_for_lesson(data["sport"], data["datetime"])
 
         text_choice = "Yes" if choice else "No"
 

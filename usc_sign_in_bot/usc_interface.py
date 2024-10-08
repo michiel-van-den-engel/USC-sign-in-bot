@@ -1,11 +1,12 @@
 """Module to hold the """
+
 import json
 import logging
 import os
-import time
 from datetime import datetime as dt
 from datetime import timedelta
 
+from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
@@ -38,16 +39,30 @@ class UscInterface(webdriver.Chrome):
         service = Service(ChromeDriverManager().install())
 
         chrome_options = Options()
-        chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--headless=new")
         chrome_options.add_argument("--disable-gpu")
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--window-size=1920x1080")
+        chrome_options.add_argument("--enable-logging")
+        chrome_options.add_argument("--v=1")
+        chrome_options.add_argument("--profile-directory=chromeuser")
+        chrome_options.add_argument("--disable-extensions")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+        chrome_options.add_argument("--disable-software-rasterizer")
 
         super().__init__(service=service, options=chrome_options)
 
         self._set_browser_timezone(TIMEZONE)
 
         self._login(username, password, uva_login)
+
+    def __enter__(self):
+        """Return the object when entering in the context"""
+        return self
+
+    def __exit__(self, *_):
+        """Clean up after exiting the context"""
+        self.quit()
 
     def _login(self, username: str, password: str, uva_login: bool = False) -> None:
         """Login to the my USC environment"""
@@ -58,8 +73,8 @@ class UscInterface(webdriver.Chrome):
 
         else:
             raise NotImplementedError(
-                "For now it will only work with UVA login, feel free to add it yourself in a pull"+
-                "request!"
+                "For now it will only work with UVA login, feel free to add it yourself in a pull"
+                + "request!"
             )
 
     def _login_with_uva(self, username: str, password: str):
@@ -97,7 +112,7 @@ class UscInterface(webdriver.Chrome):
     def _log_page_to_output_file(self):
         """Logs the page to html output in case of errors such that it can be inspected where the
         error came from"""
-        with open('error_output_page.html', 'w', encoding='utf-8') as file_log:
+        with open("error_output_page.html", "w", encoding="utf-8") as file_log:
             file_log.write(self.page_source)
 
     def _set_browser_timezone(self, timezone):
@@ -145,7 +160,7 @@ class UscInterface(webdriver.Chrome):
         selector_path : str
             The path of the selector used to locate the web element (e.g., a CSS selector or XPath).
         select_with : selenium.webdriver.common.by.By, optional
-            The type of selector to use (e.g., By.CSS_SELECTOR, By.XPATH, etc.). The default is 
+            The type of selector to use (e.g., By.CSS_SELECTOR, By.XPATH, etc.). The default is
             By.CSS_SELECTOR.
 
         Returns
@@ -203,7 +218,6 @@ class UscInterface(webdriver.Chrome):
             self._log_page_to_output_file()
             raise error
 
-
     def _filter_for_sport(self, sport: str) -> None:
         """Set the filter for the sport we want to filter for"""
 
@@ -245,20 +259,30 @@ class UscInterface(webdriver.Chrome):
         return filtered_elements
 
     @staticmethod
-    def _extract_info_from_timeslot(slot, day_ahead):
+    def _extract_info_from_timeslot(
+        slot: webdriver.remote.webelement.WebElement, day_ahead: int
+    ):
         """Extract the info from a timeslot element"""
-        # Sleep such that the slot is loaded correctly
-        time.sleep(0.2)
-        extracted_time = slot.find_element(
-            By.CSS_SELECTOR, 'p[data-test-id="bookable-slot-start-time"] > strong'
-        ).text
-        trainer: str = slot.find_element(
-            By.CSS_SELECTOR, 'span[data-test-id="bookable-slot-supervisor-first-name"]'
-        ).text
+
+        # Get the time and trainer from the block
+        slot_html: str = slot.get_attribute("outerHTML")
+        extracted_time: str = (
+            BeautifulSoup(slot_html, "html.parser")
+            .select_one('p[data-test-id="bookable-slot-start-time"] > strong')
+            .text
+        )
+        trainer: str = (
+            BeautifulSoup(slot_html, "html.parser")
+            .select_one('span[data-test-id="bookable-slot-supervisor-first-name"]')
+            .text
+        )
 
         if not extracted_time:
-            logger.error(f"Time extraction Failed for %s {slot}")
+            logger.error("Time extraction Failed for slot %s", slot_html)
             raise ValueError(f"Time Extraction failed for slot {slot}")
+
+        if not trainer:
+            logger.error("Trainer extraction Failed for slot %s", slot_html)
 
         # Comibine the time from the element with the days ahead to a datetime object
         dt_time: dt = dt.combine(
@@ -430,7 +454,7 @@ class UscInterface(webdriver.Chrome):
 
     def get_all_lessons(self, sport: str, days_in_future: int = 7):
         """
-        Retrieve a list of all lessons available for a specified sport over a given number of 
+        Retrieve a list of all lessons available for a specified sport over a given number of
         future days.
 
         This method filters lessons based on the specified sport and then iterates over the

@@ -16,6 +16,8 @@ WORKDIR /home/seluser/app
 # Install Python dependencies
 RUN python3 -m venv .venv
 RUN .venv/bin/pip install -r requirements.txt
+RUN .venv/bin/pip install --upgrade chromedriver-autoinstaller
+
 
 # Ensure the virtual environment is in the PATH
 ENV PATH="/home/seluser/app/.venv/bin:$PATH"
