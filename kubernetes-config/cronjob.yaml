@@ -17,12 +17,12 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: uva-login
-                  key: password
+                  key: username
             - name: UVA_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: uva-login
-                  key: username
+                  key: password
             - name: BOTTOKEN
               valueFrom:
                 secretKeyRef:
